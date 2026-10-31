@@ -40,11 +40,15 @@ interface CallState {
   people: CallPerson[];
   lowBattery: number | null;
   peerBattery: Record<string, { name: string; level: number }>;
+  /** Pictures fill their tile (cropped) or fit inside it (whole picture, bars around). */
+  fit: boolean;
+  /** The call shrinks to a small window so the rest of the app can be used. */
+  minimized: boolean;
 }
 
 export const useCall = create<CallState>(() => ({
   phase: 'idle', roomId: null, joining: false, video: false, micOn: true, camOn: false, facing: 'user', canFlip: false, sharing: false,
-  error: null, startedAt: 0, people: [], lowBattery: null, peerBattery: {},
+  error: null, startedAt: 0, people: [], lowBattery: null, peerBattery: {}, fit: false, minimized: false,
 }));
 
 const set = useCall.setState;
@@ -74,7 +78,7 @@ export function startCall(roomId: string, video: boolean, joining = false): Prom
     useStore.getState().showToast('Calls need a secure connection (https).');
     return Promise.resolve();
   }
-  set({ phase: 'lobby', roomId, joining, video, micOn: true, camOn: video, facing: 'user', error: null, people: [], lowBattery: null, peerBattery: {}, sharing: false });
+  set({ phase: 'lobby', roomId, joining, video, micOn: true, camOn: video, facing: 'user', error: null, people: [], lowBattery: null, peerBattery: {}, sharing: false, minimized: false });
   return Promise.resolve();
 }
 
@@ -238,9 +242,12 @@ export async function leaveCall(playEnd = true): Promise<void> {
   const r = room;
   room = null;
   await r?.disconnect().catch(() => undefined);
-  set({ phase: 'idle', roomId: null, people: [], sharing: false, lowBattery: null, peerBattery: {} });
+  set({ phase: 'idle', roomId: null, people: [], sharing: false, lowBattery: null, peerBattery: {}, minimized: false });
   if (playEnd) playSound('end');
 }
+
+export const setFit = (fit: boolean): void => set({ fit });
+export const setMinimized = (minimized: boolean): void => set({ minimized });
 
 export function dismissError(): void {
   set({ phase: 'idle', roomId: null, error: null });

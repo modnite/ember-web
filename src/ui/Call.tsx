@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VideoTrack } from 'livekit-client';
-import { canShareScreen, cancelLobby, connectCall, dismissError, flipCamera, leaveCall, setLobby, toggleCamera, toggleMic, toggleScreen, useCall, type CallPerson } from '../lib/call';
+import { canShareScreen, cancelLobby, connectCall, dismissError, flipCamera, leaveCall, setFit, setLobby, setMinimized, toggleCamera, toggleMic, toggleScreen, useCall, type CallPerson } from '../lib/call';
 import { roomPeer, roomTitle } from '../lib/format';
 import { realtime } from '../lib/realtime';
 import { usePrefs } from '../lib/prefs';
@@ -26,14 +26,20 @@ function TrackVideo({ track, mirror }: { track?: VideoTrack; mirror?: boolean })
 
 function Tile({ p, big }: { p: CallPerson; big?: boolean }) {
   const mirrorSelf = usePrefs((s) => s.mirrorSelf);
+  const fitAll = useCall((s) => s.fit);
+  // Per tile: null follows the call-wide choice. A shared screen starts out fitted so nothing is cut off.
+  const [own, setOwn] = useState<boolean | null>(null);
   const facing = useCall((s) => s.facing);
   const user = useStore((s) => s.users[p.userId]);
   const screen = !!p.screen;
   const track = p.screen ?? p.camera;
   const mirror = p.isLocal && !screen && mirrorSelf && facing === 'user';
+  const hasPicture = !!track && (p.camOn || screen);
+  const fitted = own ?? (screen ? true : fitAll);
   return (
-    <div className={`tile${p.speaking ? ' speaking' : ''}${mirror ? ' mirror' : ''}${screen ? ' contain' : ''}`} data-big={big ? '1' : undefined}>
-      {track && (p.camOn || screen) ? <TrackVideo track={track} mirror={mirror} /> : <Avatar user={user} name={p.name} size={88} />}
+    <div className={`tile${p.speaking ? ' speaking' : ''}${mirror ? ' mirror' : ''}${fitted ? ' contain' : ''}`} data-big={big ? '1' : undefined}>
+      {hasPicture ? <TrackVideo track={track} mirror={mirror} /> : <Avatar user={user} name={p.name} size={88} />}
+      {hasPicture ? <button type="button" className="tile-fit" aria-label={fitted ? `Fill the tile with ${p.isLocal ? 'your picture' : p.name}` : `Fit ${p.isLocal ? 'your picture' : p.name} in the tile`} title={fitted ? 'Fill' : 'Fit'} onClick={() => setOwn(!fitted)}><Icon name={fitted ? 'fullscreen' : 'fullscreenExit'} /></button> : null}
       <span className="label">{p.isLocal ? 'You' : p.name}{!p.micOn ? <Icon name="micOff" className="mic-ico" /> : null}</span>
     </div>
   );
@@ -75,14 +81,17 @@ export function CallScreen() {
   const sharer = people.find((p) => p.screen);
   const shown = sharer ? [sharer, ...people.filter((p) => p !== sharer)] : people;
   const peerBattery = Object.values(c.peerBattery);
+  if (c.minimized) return <Mini title={title} people={people} elapsed={c.phase === 'connected' ? elapsed(c.startedAt, now) : 'Connecting…'} />;
   return (
     <div className="call" role="dialog" aria-modal="true" aria-label={`Call with ${title}`}>
       <div className="call-top">
+        <button type="button" className="call-btn small" aria-label="Back to your chats. The call keeps going." title="Back to chats" onClick={() => setMinimized(true)}><Icon name="down" /></button>
         <div className="grow"><b>{title}</b><small>{c.phase === 'connecting' ? 'Connecting…' : people.length < 2 ? 'Ringing…' : elapsed(c.startedAt, now)}</small></div>
+        <button type="button" className="call-btn small" aria-label={c.fit ? 'Fill every tile' : 'Fit every picture'} aria-pressed={c.fit} title={c.fit ? 'Fill' : 'Fit'} onClick={() => setFit(!c.fit)}><Icon name={c.fit ? 'fullscreen' : 'fullscreenExit'} /></button>
       </div>
       {c.lowBattery !== null && !dismissed ? <div className="battery-note" role="status"><Icon name="battery" className="mic-ico" /> Your battery is at {c.lowBattery}%. Plug in now and use a fast charger. <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss" style={{ color: '#fff', marginLeft: 8 }}>✕</button></div> : null}
       {peerBattery.map((b) => <div className="battery-note" key={b.name} role="status">{b.name}'s battery is at {b.level}%.</div>)}
-      <div className="tiles" data-n={Math.min(shown.length, 9)}>
+      <div className="tiles" data-n={Math.min(shown.length, 9)} data-share={sharer ? '1' : undefined}>
         {shown.map((p, i) => <Tile key={p.identity + (p.screen ? 's' : '')} p={p} big={i === 0} />)}
       </div>
       <div className="call-actions">
@@ -91,6 +100,29 @@ export function CallScreen() {
         {c.canFlip && c.camOn ? <CallButton icon="flip" label="Switch camera" onClick={() => void flipCamera()} /> : null}
         {canShareScreen() ? <CallButton icon="screen" label={c.sharing ? 'Stop sharing' : 'Share screen'} pressed={c.sharing} onClick={() => void toggleScreen()} /> : null}
         <CallButton icon="callEnd" label="Leave the call" className="end" onClick={() => void leaveCall()} />
+      </div>
+    </div>
+  );
+}
+
+/** The call as a small window over the app: the other person (or whoever speaks) and the buttons that matter. Tap it to go back to the full call. */
+function Mini({ title, people, elapsed: time }: { title: string; people: CallPerson[]; elapsed: string }) {
+  const c = useCall();
+  const user = useStore((s) => s.users);
+  const remote = people.filter((p) => !p.isLocal);
+  const main = remote.find((p) => p.speaking) ?? remote.find((p) => p.screen) ?? remote[0] ?? people[0];
+  const track = main ? main.screen ?? main.camera : undefined;
+  const show = !!main && !!track && (main.camOn || !!main.screen);
+  return (
+    <div className="call mini" role="region" aria-label={`Call with ${title}`}>
+      <button type="button" className="mini-view" aria-label="Return to the call" onClick={() => setMinimized(false)}>
+        {show ? <TrackVideo track={track} /> : <Avatar user={main ? user[main.userId] : undefined} name={main?.name ?? title} size={56} />}
+        <span className="label">{title} · {time}</span>
+      </button>
+      <div className="mini-actions">
+        <CallButton icon={c.micOn ? 'mic' : 'micOff'} label={c.micOn ? 'Mute' : 'Unmute'} pressed={!c.micOn} onClick={() => void toggleMic()} className="small" />
+        <CallButton icon="fullscreen" label="Return to the call" onClick={() => setMinimized(false)} className="small" />
+        <CallButton icon="callEnd" label="Leave the call" className="end small" onClick={() => void leaveCall()} />
       </div>
     </div>
   );
