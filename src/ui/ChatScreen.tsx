@@ -355,6 +355,21 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const decrypted = store.text;
   const call = activeCalls[roomId];
 
+  // Nudge and room notices sit among the messages by time, as in the Android app, so new messages arrive below them instead of above.
+  const roomEvents = events[roomId];
+  const notices = useMemo(() => {
+    const before: { id: string; text: string; at: number }[] = [];
+    const after = new Map<number, { id: string; text: string; at: number }[]>();
+    const times = (list ?? []).map((m) => m.createdAt);
+    for (const e of roomEvents ?? []) {
+      let at = -1;
+      for (let i = 0; i < times.length; i++) if (times[i]! <= e.at) at = i;
+      if (at < 0) before.push(e);
+      else after.set(at, [...(after.get(at) ?? []), e]);
+    }
+    return { before, after };
+  }, [roomEvents, list]);
+
   const rows = useMemo(() => {
     if (!list || !room) return [];
     return list.map((m, i) => {
@@ -476,16 +491,17 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
       <div className="messages scroll" ref={scroller} onScroll={onScroll} role="log" aria-live="off" aria-label={`Messages with ${title}`}>
         {history[roomId] === 'loading' ? <div className="older">Loading…</div> : null}
         {history[roomId] === 'more' ? <div className="older">Scroll up for older messages</div> : null}
-        {rows.map(({ m, first, last, newDay, status, quoteText }) => (
+        {notices.before.map((e) => <div key={e.id} className="event">{e.text}</div>)}
+        {rows.map(({ m, first, last, newDay, status, quoteText }, rowIndex) => (
           <div key={m.id}>
             {newDay ? <div className="day"><span>{dayLabel(m.createdAt)}</span></div> : null}
             <Bubble m={m} room={room} meId={meId} mine={m.userId === meId} first={first} last={last} showName={room.kind === 'group' && first} text={decrypted(m)} quoteText={quoteText} status={status}
               selected={picked.includes(m.id)} selecting={picked.length > 0} onPick={(x) => setPicked((p) => (p.includes(x.id) ? p : [...p, x.id]))} onToggle={(x) => setPicked((p) => (p.includes(x.id) ? p.filter((i) => i !== x.id) : [...p, x.id]))}
               onReply={(x) => { store.setReply(roomId, x); input.current?.focus(); }} onQuickForward={(x) => setFwd([x])}
               onMenu={setMenu} onOpenMedia={(url, name) => setViewer({ url, name })} onJump={jump} onRetry={(x) => void store.retry(roomId, x.id)} onDiscard={(x) => store.discard(roomId, x.id)} onReact={(x, e) => void store.react(x, e)} />
+            {(notices.after.get(rowIndex) ?? []).map((e) => <div key={e.id} className="event">{e.text}</div>)}
           </div>
         ))}
-        {(events[roomId] ?? []).slice(-5).map((e) => <div key={e.id} className="event">{e.text}</div>)}
         {rows.length === 0 && history[roomId] !== 'loading' ? <div className="empty-main" style={{ padding: 40 }}>No messages yet. Say hello.</div> : null}
         {below ? <button type="button" className="new-below" onClick={() => { toBottom(true); setBelow(false); }}>New messages</button> : null}
       </div>

@@ -151,7 +151,6 @@ test('photos go out as Standard (1600) or HD (up to 4096)', async ({ page }) => 
 
 test('nudge: the button sends one, and a nudge from someone else shakes the chat and says so', async ({ page, request }) => {
   await openChat(page);
-  // On a narrow screen the button lives in the attach menu so the title keeps its room.
   if (!(await page.getByRole('button', { name: 'Nudge' }).first().isVisible().catch(() => false))) {
     await page.getByRole('button', { name: 'Attach' }).click();
     await page.getByRole('button', { name: 'Nudge' }).click();
@@ -159,6 +158,20 @@ test('nudge: the button sends one, and a nudge from someone else shakes the chat
     await page.getByRole('button', { name: 'Nudge' }).click();
   }
   await expect(page.getByText('You sent a nudge')).toBeVisible();
+  // A message sent after the nudge arrives below it, not above it.
+  const tag = `after the nudge ${Date.now()}`;
+  await page.getByRole('textbox', { name: 'Message' }).fill(tag);
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.getByText(tag).last()).toBeVisible();
+  const order = await page.evaluate((t) => {
+    const log = document.querySelector('[role="log"]')!;
+    const all = [...log.querySelectorAll('.event, .bubble .text')];
+    const n = all.findIndex((e) => e.textContent === 'You sent a nudge');
+    const m = all.findIndex((e) => e.textContent?.includes(t));
+    return { n, m };
+  }, tag);
+  expect(order.n).toBeGreaterThanOrEqual(0);
+  expect(order.m).toBeGreaterThan(order.n);
   // someone else nudges the same group (a second account on the scratch server)
   const other = await request.post('/api/auth/login', { data: { username: process.env.EMBER_OTHER ?? 'maya', password: process.env.EMBER_PASS ?? 'password123' } });
   test.skip(!other.ok(), 'no second account on this server');

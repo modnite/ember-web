@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2
+
+* Nudge lines (and other room notices) sit among the messages by time, as in the Android app. New messages arrive below them instead of above.
+
 ## 0.8.1
 
 * The Nudge button is in the top bar on every screen size, for everyone. Voice and video calls share one Call button that opens a small menu, as in the Android app, so the chat name has room.
