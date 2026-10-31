@@ -7,7 +7,11 @@ import { useStore } from '../lib/store';
 import { isIOS } from '../lib/viewport';
 import type { LinkPreview, Message, Room, User } from '../lib/types';
 import { Avatar, Confirm, Icon, IconButton, Sheet, type IconName } from './kit';
-import { AttachmentView, Viewer } from './media';
+import { addFav } from '../lib/favourites';
+import { isJumbo } from '../lib/emoji';
+import { Emoji, EmojiText } from './EmojiText';
+import { EmojiPicker, MediaPanel } from './MediaPanel';
+import { AttachmentView, attachmentBlob, Viewer } from './media';
 import { Recorder } from './Recorder';
 import { RoomInfo } from './RoomInfo';
 
@@ -18,7 +22,7 @@ function Linkified({ text }: { text: string }) {
   const parts = text.split(URL_RE);
   return (
     <>
-      {parts.map((p, i) => (i % 2 === 1 ? <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow">{p}</a> : p))}
+      {parts.map((p, i) => (i % 2 === 1 ? <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow">{p}</a> : <EmojiText key={i} text={p} />))}
     </>
   );
 }
@@ -113,11 +117,11 @@ const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName
           {m.replyTo && !deleted ? (
             <div className="quote" role="button" tabIndex={0} onClick={() => onJump(m.replyTo!.id)} onKeyDown={(e) => { if (e.key === 'Enter') onJump(m.replyTo!.id); }}>
               <b>{m.replyTo.userId === meId ? 'You' : room.members.find((u) => u.id === m.replyTo!.userId)?.displayName ?? 'Someone'}</b>
-              <span>{m.replyTo.deleted ? 'This message was deleted' : quoteText}</span>
+              <span>{m.replyTo.deleted ? 'This message was deleted' : <EmojiText text={quoteText} />}</span>
             </div>
           ) : null}
           {!deleted ? m.attachments.map((a) => <div key={a.id} style={{ marginBottom: 2 }}><AttachmentView a={a} roomId={m.roomId} onOpen={(att, url) => onOpenMedia(url, att.filename)} /></div>) : null}
-          {body ? <div className="text">{deleted || text.locked || text.failed ? body : <Linkified text={body} />}</div> : null}
+          {body ? <div className={`text${!deleted && !text.locked && !text.failed && !m.attachments.length && isJumbo(body) ? ' jumbo' : ''}`}>{deleted || text.locked || text.failed ? body : <Linkified text={body} />}</div> : null}
           {preview && (preview.title || preview.image) ? (
             <a className="link-card" href={preview.url} target="_blank" rel="noopener noreferrer nofollow">
               {preview.image ? <img src={preview.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
@@ -135,7 +139,7 @@ const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName
       {counts.length > 0 && !deleted ? (
         <div className={`reactions${mine ? ' mine' : ''}`} style={{ marginLeft: !mine && room.kind === 'group' ? 48 : undefined }}>
           {counts.map(([emoji, c]) => (
-            <button key={emoji} type="button" className={`reaction${c.me ? ' me' : ''}`} aria-label={`${emoji} ${c.n}${c.me ? ', yours' : ''}`} onClick={() => onReact(m, emoji)}>{emoji}{c.n > 1 ? <small>{c.n}</small> : null}</button>
+            <button key={emoji} type="button" className={`reaction${c.me ? ' me' : ''}`} aria-label={`${emoji} ${c.n}${c.me ? ', yours' : ''}`} onClick={() => onReact(m, emoji)}><Emoji emoji={emoji} />{c.n > 1 ? <small>{c.n}</small> : null}</button>
           ))}
         </div>
       ) : null}
@@ -164,6 +168,8 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [info, setInfo] = useState(false);
   const [attach, setAttach] = useState(false);
+  const [panel, setPanel] = useState(false);
+  const [moreReact, setMoreReact] = useState<Message | null>(null);
   const [draft, setDraft] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [recording, setRecording] = useState(false);
@@ -288,7 +294,33 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
     if (picked.length) setFiles((f) => [...f, ...picked].slice(0, 10));
   }
 
+  function insertEmoji(e: string): void {
+    const el = input.current;
+    const at = el?.selectionStart ?? draft.length;
+    const to = el?.selectionEnd ?? at;
+    const next = draft.slice(0, at) + e + draft.slice(to);
+    setDraft(next);
+    window.requestAnimationFrame(() => {
+      if (!el) return;
+      el.setSelectionRange(at + e.length, at + e.length);
+      grow(el);
+    });
+    store.typingNow(roomId);
+  }
+
+  async function saveFavourite(m: Message): Promise<void> {
+    const a = m.attachments.find((x) => isSticker(x) || /gif/i.test(x.mime) || /\.gif$/i.test(x.filename));
+    if (!a) return;
+    try {
+      await addFav(isSticker(a) ? 'sticker' : 'gif', await attachmentBlob(a, m.roomId, e2ee.key));
+      store.showToast(isSticker(a) ? 'Sticker saved' : 'GIF saved');
+    } catch (e) {
+      store.showToast(e instanceof Error ? e.message : 'Could not save that.');
+    }
+  }
+
   const mineMsg = menu?.userId === meId;
+  const savable = !!menu && !menu.deletedAt && menu.attachments.some((x) => isSticker(x) || /gif/i.test(x.mime) || /\.gif$/i.test(x.filename));
 
   return (
     <div className="chat" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
@@ -352,6 +384,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
           ) : (
             <>
               <div className="field">
+                {!sealedBlocked ? <IconButton icon="emoji" label={panel ? 'Keyboard' : 'Emoji, GIFs and stickers'} pressed={panel} onClick={() => { if (!panel) input.current?.blur(); setPanel(!panel); if (panel) input.current?.focus(); }} /> : null}
                 <textarea
                   ref={input}
                   rows={1}
@@ -364,7 +397,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
                   autoCapitalize="sentences"
                   enterKeyHint={enterSends ? 'send' : 'enter'}
                   onChange={(e) => { setDraft(e.target.value); grow(e.target); if (e.target.value) store.typingNow(roomId); }}
-                  onFocus={() => { stick.current = true; window.setTimeout(() => toBottom(), 250); }}
+                  onFocus={() => { stick.current = true; setPanel(false); window.setTimeout(() => toBottom(), 250); }}
                   onKeyDown={(e) => {
                     // Enter sends only if switched on (a phone keyboard's Enter is for new lines); Ctrl/Cmd+Enter always sends.
                     if (e.key === 'Enter' && !e.nativeEvent.isComposing && ((enterSends && !e.shiftKey) || e.ctrlKey || e.metaKey)) { e.preventDefault(); void submit().then(() => { const el = input.current; if (el) grow(el); }); }
@@ -378,6 +411,9 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
             </>
           )}
         </div>
+        {panel && !sealedBlocked ? (
+          <MediaPanel onEmoji={insertEmoji} onSend={(file) => { setPanel(false); stick.current = true; void sendFiles(roomId, [file]); }} onClose={() => { setPanel(false); input.current?.focus(); }} />
+        ) : null}
         <input ref={picker} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
         <input ref={camera} type="file" accept="image/*,video/*" capture="environment" hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
         <input ref={docs} type="file" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
@@ -394,14 +430,20 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
       {menu ? (
         <Sheet onClose={() => setMenu(null)}>
           {!menu.deletedAt ? (
-            <div className="react-bar">{QUICK.map((e) => <button key={e} type="button" aria-label={`React ${e}`} onClick={() => { void store.react(menu, e); setMenu(null); }}>{e}</button>)}</div>
+            <div className="react-bar">{QUICK.map((e) => <button key={e} type="button" aria-label={`React ${e}`} onClick={() => { void store.react(menu, e); setMenu(null); }}><Emoji emoji={e} size={30} /></button>)}<button type="button" aria-label="More reactions" onClick={() => { setMoreReact(menu); setMenu(null); }}><Icon name="add" /></button></div>
           ) : null}
           {!menu.deletedAt ? <MenuItem icon="reply" label="Reply" onClick={() => { store.setReply(roomId, menu); setMenu(null); input.current?.focus(); }} /> : null}
           {!menu.deletedAt && decrypted(menu).text ? <MenuItem icon="copy" label="Copy" onClick={() => { void navigator.clipboard?.writeText(decrypted(menu).text).then(() => store.showToast('Copied')).catch(() => undefined); setMenu(null); }} /> : null}
+          {savable ? <MenuItem icon="photo" label="Save to favourites" onClick={() => { void saveFavourite(menu); setMenu(null); }} /> : null}
           {!menu.deletedAt ? <MenuItem icon="forward" label="Forward" onClick={() => { setFwd(menu); setMenu(null); }} /> : null}
           {!menu.deletedAt ? <MenuItem icon="pin" label="Pin or unpin" onClick={() => { void store.pin(menu); setMenu(null); }} /> : null}
           {mineMsg && !menu.deletedAt && !menu.attachments.length ? <MenuItem icon="edit" label="Edit" onClick={() => { store.setEditing(menu); setDraft(decrypted(menu).text); setMenu(null); window.setTimeout(() => { const el = input.current; if (el) { el.focus(); grow(el); } }, 50); }} /> : null}
           {mineMsg && !menu.deletedAt ? <MenuItem icon="trash" label="Delete" danger onClick={() => { setDel(menu); setMenu(null); }} /> : null}
+        </Sheet>
+      ) : null}
+      {moreReact ? (
+        <Sheet title="React" onClose={() => setMoreReact(null)}>
+          <div className="react-more"><EmojiPicker onPick={(e) => { void store.react(moreReact, e); setMoreReact(null); }} /></div>
         </Sheet>
       ) : null}
       {fwd ? <ForwardTo message={fwd} onClose={() => setFwd(null)} /> : null}

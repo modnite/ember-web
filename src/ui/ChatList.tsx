@@ -1,3 +1,4 @@
+import { EmojiText } from './EmojiText';
 import { memo, useMemo, useState } from 'react';
 import { listTime, messagePreview, roomPeer, roomTitle } from '../lib/format';
 import { useStore } from '../lib/store';
@@ -20,7 +21,7 @@ const Row = memo(function Row({ room, meId, selected, typing, preview, onOpen }:
         </span>
         <span className="line2">
           <span className="preview" style={typing ? { color: 'var(--primary)' } : undefined}>
-            {typing ? 'typing…' : last ? `${mine ? 'You: ' : room.kind === 'group' && last.user ? `${last.user.displayName.split(' ')[0]}: ` : ''}${preview}` : 'No messages yet'}
+            {typing ? 'typing…' : last ? <EmojiText text={`${mine ? 'You: ' : room.kind === 'group' && last.user ? `${last.user.displayName.split(' ')[0]}: ` : ''}${preview}`} /> : 'No messages yet'}
           </span>
           {unread ? <span className="badge" aria-label={`${room.unread} unread`}>{room.unread > 99 ? '99+' : room.unread}</span> : null}
         </span>

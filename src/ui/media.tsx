@@ -10,6 +10,18 @@ import { Icon, IconButton } from './kit';
  * The address to show an attachment from. A plain file is just its URL (the session cookie goes with it). A sealed file is downloaded, opened
  * with the room key and shown from an object URL, which is released again when the picture leaves the screen.
  */
+/** The picture or file of an attachment as a Blob, opened with the room key when it is sealed. */
+export async function attachmentBlob(a: Attachment, roomId: string, key: Uint8Array | null): Promise<Blob> {
+  const res = await fetch(attachmentUrl(a.id), { credentials: 'same-origin' });
+  if (!res.ok) throw new Error('Could not download that.');
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (!a.encrypted) return new Blob([bytes as BlobPart], { type: a.mime || 'application/octet-stream' });
+  if (!key) throw new Error('Set up encryption in this browser first.');
+  const env = decodeEnvelope(a.envelope ?? '');
+  const plain = env.v === 2 ? openBytes(roomKeyFromGroup(key, roomId, 'file'), env, bytes) : decryptBytes({ kid: env.kid } as never, roomId, env, bytes);
+  return new Blob([plain as BlobPart], { type: env.mime || a.mime || 'application/octet-stream' });
+}
+
 export function useAttachment(a: Attachment, roomId: string): { url: string | null; locked: boolean; failed: boolean } {
   const key = useStore((s) => s.e2ee.key);
   const sealed = !!a.encrypted;

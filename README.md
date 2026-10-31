@@ -15,10 +15,13 @@ Live at https://ember.cdsrv.com.
 | Messages: reply, edit, delete, forward, pin, reactions | Done |
 | Link previews (not in encrypted chats) | Done |
 | Photos, files, captions, voice notes | Done |
+| Emoji: the Apple set Hearth uses, a picker with search, large single emoji | Done |
+| Stickers: favourites, made from any picture, animated emoji, Giphy | Done |
+| GIFs: favourites, Reactions, Wikimedia, Giphy, Imgur (own keys in Settings) | Done |
 | End-to-end encrypted chats | Done |
 | Groups: members, rename, leave | Done |
 | People: requests, friend codes, blocked | Done |
-| Calls: lobby, ring, video, screen share | Done |
+| Calls: lobby, ring, video, screen share, fit or fill per tile, minimize to a small window | Done |
 | Low battery warnings in calls (20, 15, 10, 5%) | Done where the browser has a battery API |
 | Self mirror (default on) and front camera flip for others | Done |
 | Push notifications | Done, installed app only on iOS |
@@ -69,6 +72,8 @@ See [DEPLOY.md](DEPLOY.md).
 - [x] Calls
 - [x] PWA, push, updates
 - [x] WebKit smoke tests
+- [x] Emoji, stickers, GIFs
+- [ ] Signal sticker packs (the Android app has them)
 - [ ] Check on a real iPhone
 - [ ] Check front camera flip on a Samsung browser
 - [ ] Check peer battery warnings with a second device

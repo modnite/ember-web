@@ -11,7 +11,8 @@ async function signIn(page: Page): Promise<void> {
 
 async function fakeCall(page: Page, n: number, minimized = false): Promise<void> {
   await page.evaluate(async ({ n, minimized }) => {
-    const { useCall } = await import('/src/lib/call.ts');
+    const load = (path: string): Promise<any> => import(/* @vite-ignore */ path); // eslint-disable-line
+    const { useCall } = await load('/src/lib/call.ts');
     const colors = ['#2a6', '#a42', '#46b', '#b84', '#7a3', '#d37', '#389', '#c52', '#5a8'];
     const track = (i: number) => {
       const c = document.createElement('canvas');
@@ -22,7 +23,7 @@ async function fakeCall(page: Page, n: number, minimized = false): Promise<void>
       return { attach: (el: HTMLVideoElement) => { el.poster = url; return el; }, detach: () => undefined };
     };
     const people = Array.from({ length: n }, (_, i) => ({ identity: `u${i}:d`, userId: `u${i}`, name: i === 0 ? 'Me' : `Person ${i}`, isLocal: i === 0, micOn: i % 3 !== 2, camOn: true, speaking: i === 1, camera: track(i) as never }));
-    useCall.setState({ phase: 'connected', roomId: (await import('/src/lib/store.ts')).useStore.getState().rooms[0]!.id, startedAt: Date.now() - 65000, people, minimized, micOn: true, camOn: true, canFlip: true });
+    useCall.setState({ phase: 'connected', roomId: (await load('/src/lib/store.ts')).useStore.getState().rooms[0]!.id, startedAt: Date.now() - 65000, people, minimized, micOn: true, camOn: true, canFlip: true });
   }, { n, minimized });
 }
 

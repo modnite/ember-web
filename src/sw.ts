@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
+import { CacheFirst } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<string | { url: string; revision: string | null }> };
@@ -8,6 +10,9 @@ declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<string | {
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: [/^\/api\//, /^\/ws/] }));
+
+// Emoji pictures are fetched when first shown and kept, so a second look (and offline) costs nothing.
+registerRoute(({ url }) => url.pathname.startsWith('/emoji/'), new CacheFirst({ cacheName: 'emoji', plugins: [new ExpirationPlugin({ maxEntries: 1500, maxAgeSeconds: 60 * 60 * 24 * 180 })] }));
 
 // The page decides when to take a new version (a "Reload to update" bar), so the app is never swapped under someone typing.
 self.addEventListener('message', (e) => {

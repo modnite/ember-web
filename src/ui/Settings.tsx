@@ -90,6 +90,11 @@ export function Settings() {
           <Toggle icon="edit" title="Check spelling" sub="Underline misspelt words in the message box" checked={prefs.spellcheck} onChange={(v) => set('spellcheck', v)} />
         </Group>
 
+        <Group title="GIFs and stickers">
+          <div className="setting"><Icon name="photo" className="ico" /><span className="main"><label htmlFor="giphy">Giphy key</label><small>Your own key from developers.giphy.com. Without one, Giphy stays off.</small><input id="giphy" className="key-input" type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} value={prefs.giphyKey} onChange={(e) => set('giphyKey', e.target.value)} /></span></div>
+          <div className="setting"><Icon name="photo" className="ico" /><span className="main"><label htmlFor="imgur">Imgur client ID</label><small>Your own ID from api.imgur.com. Without one, Imgur stays off.</small><input id="imgur" className="key-input" type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} value={prefs.imgurId} onChange={(e) => set('imgurId', e.target.value)} /></span></div>
+        </Group>
+
         <Group title="Calls">
           <Toggle icon="camera" title="Mirror my own picture" sub="You see yourself like in a mirror. Others see you as you are." checked={prefs.mirrorSelf} onChange={(v) => set('mirrorSelf', v)} />
           <div className="setting"><Icon name="flip" className="ico" /><span className="main">Flip front camera for others<small>Auto flips on Samsung phones, whose cameras send an already flipped picture</small></span><Seg label="Flip front camera" value={prefs.flipFront} options={[['auto', 'Auto'], ['on', 'On'], ['off', 'Off']]} onChange={(v) => set('flipFront', v)} /></div>

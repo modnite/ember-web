@@ -11,10 +11,13 @@ export interface Prefs {
   /** Flip the front camera before sending (for phones whose camera hands over an already flipped picture). Auto means: Samsung models. */
   flipFront: 'auto' | 'on' | 'off';
   crashReports: boolean;
+  /** Your own keys for the GIF services that need one (kept in this browser only). */
+  giphyKey: string;
+  imgurId: string;
 }
 
 const KEY = 'ember.prefs';
-const DEFAULTS: Prefs = { theme: 'system', enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true };
+const DEFAULTS: Prefs = { theme: 'system', enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, giphyKey: '', imgurId: '' };
 
 function load(): Prefs {
   try {

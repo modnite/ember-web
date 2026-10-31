@@ -10,3 +10,5 @@ ssh cdsrv 'cd /opt/ember-web && rm -rf site/* && tar xzf /tmp/ember-web-dist.tgz
 ```
 
 Check that `sw.js` and `manifest.webmanifest` are served with `Cache-Control: no-store`.
+
+The Caddy config for the box is in `deploy/Caddyfile`. Emoji pictures are copied from `emoji-datasource-apple` at build time (`npm run build` does it), so `dist` is about 35 MB.

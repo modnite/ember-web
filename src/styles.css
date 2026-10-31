@@ -202,7 +202,8 @@ a { color: var(--primary); }
 .retry-line button { color: var(--primary); font-weight: 600; margin-left: 8px; }
 .media { display: block; border-radius: 13px; overflow: hidden; background: var(--container-high); max-width: 100%; position: relative; }
 .media img, .media video { display: block; width: 100%; height: auto; max-height: 420px; object-fit: cover; }
-.media.sticker img { background: none; object-fit: contain; max-height: 180px; width: auto; }
+.media.sticker { background: none; border-radius: 0; }
+.media.sticker img { background: none; object-fit: contain; max-height: 180px; width: 100%; height: auto; margin: 0 auto; }
 .file-chip { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: rgba(0, 0, 0, 0.05); border-radius: 12px; min-width: 200px; text-align: left; width: 100%; }
 .file-chip svg { width: 28px; height: 28px; fill: var(--primary); flex: none; }
 .file-chip b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
@@ -355,3 +356,50 @@ svg:not([width]):not([class]) { width: 1.25em; height: 1.25em; fill: currentColo
 .mini-view video { width: 100%; height: 100%; object-fit: cover; }
 .mini-view .label { position: absolute; left: 6px; right: 6px; bottom: 6px; background: rgba(0, 0, 0, 0.55); border-radius: 10px; padding: 2px 8px; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .mini-actions { display: flex; justify-content: space-around; gap: 6px; padding: 8px; }
+
+.emoji { width: 1.25em; height: 1.25em; vertical-align: -0.28em; display: inline-block; object-fit: contain; }
+.emoji-glyph { font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
+.bubble .text.jumbo { font-size: 44px; line-height: 1.15; }
+.bubble .text.jumbo .emoji { width: 1em; height: 1em; vertical-align: -0.12em; }
+.reaction .emoji { width: 18px; height: 18px; vertical-align: -4px; }
+.react-bar button { display: grid; place-items: center; }
+.react-bar button svg { width: 26px; height: 26px; fill: var(--on-surface-variant); }
+.react-more { height: min(56vh, 420px); display: flex; flex-direction: column; }
+.key-input { display: block; width: 100%; margin-top: 6px; min-height: 40px; padding: 6px 10px; font-size: 16px; border: 1px solid var(--outline); border-radius: 10px; background: var(--bg); color: var(--on-bg); font-family: ui-monospace, monospace; }
+.setting label { font-weight: 500; }
+.composer .field > .icon-btn:first-child { margin-left: -10px; }
+
+.media-panel { display: flex; flex-direction: column; height: min(44vh, 360px); min-height: 240px; background: var(--container); border-radius: 16px; overflow: hidden; margin-top: 2px; }
+.mp-tabs { display: flex; align-items: stretch; flex: none; border-bottom: 1px solid var(--outline-variant); }
+.mp-tabs button[role='tab'] { flex: 1; min-height: 44px; font-weight: 500; color: var(--on-surface-variant); border-bottom: 3px solid transparent; }
+.mp-tabs button[aria-selected='true'] { color: var(--primary); border-bottom-color: var(--primary); }
+.mp-close { width: 48px; display: grid; place-items: center; color: var(--on-surface-variant); }
+.mp-close svg { width: 24px; height: 24px; fill: currentColor; }
+.mp-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.mp-search { display: flex; align-items: center; gap: 8px; margin: 8px 10px 4px; padding: 0 12px; min-height: 40px; background: var(--container-high); border-radius: 20px; flex: none; }
+.mp-search svg { width: 20px; height: 20px; fill: var(--on-surface-variant); flex: none; }
+.mp-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 16px; min-height: 38px; }
+.mp-cats, .mp-sources { display: flex; gap: 4px; overflow-x: auto; padding: 2px 10px 4px; flex: none; scrollbar-width: none; }
+.mp-cats button { flex: none; width: 40px; height: 36px; display: grid; place-items: center; border-radius: 10px; }
+.mp-cats button[aria-selected='true'] { background: var(--primary-container); }
+.mp-sources { padding-top: 8px; }
+.mp-sources button { flex: none; padding: 0 14px; min-height: 34px; border-radius: 17px; border: 1px solid var(--outline-variant); font-size: 14px; }
+.mp-sources button[aria-selected='true'] { background: var(--primary-container); color: var(--on-primary-container); border-color: transparent; font-weight: 600; }
+.mp-grid { flex: 1; min-height: 0; grid-auto-rows: max-content; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 4px 10px 10px; display: grid; gap: 6px; align-content: start; }
+.mp-grid.emoji-grid { grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 2px; }
+.mp-grid.emoji-grid button { aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; }
+.mp-grid.emoji-grid button:hover { background: var(--container-high); }
+.mp-grid.gifs { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+.mp-grid.stickers { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+.mp-tile { position: relative; aspect-ratio: 1; width: 100%; display: grid; place-items: center; border-radius: 12px; overflow: hidden; background: var(--container-high); }
+.mp-grid.stickers .mp-tile { background: none; }
+.mp-grid.stickers .mp-tile:hover { background: var(--container-high); }
+.mp-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mp-grid.stickers .mp-tile img { object-fit: contain; padding: 4px; box-sizing: border-box; }
+.mp-add { aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; border: 2px dashed var(--outline); color: var(--on-surface-variant); }
+.mp-add svg { width: 32px; height: 32px; fill: currentColor; }
+.mp-fav { position: relative; }
+.mp-x { position: absolute; top: 2px; right: 2px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; display: grid; place-items: center; }
+.mp-x svg { width: 16px; height: 16px; fill: currentColor; }
+.mp-note { padding: 18px 16px; color: var(--on-surface-variant); text-align: center; grid-column: 1 / -1; }
+.mp-note .link { color: var(--primary); text-decoration: underline; }
