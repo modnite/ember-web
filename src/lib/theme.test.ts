@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLACK_VARS, DOODLE_KINDS, accentName, accentVars, doodleTile, onColor, parseHex, wallpaperCss } from './theme';
+import { BLACK_VARS, DOODLE_KINDS, accentName, doodleUnit, accentVars, doodleTile, onColor, parseHex, wallpaperCss } from './theme';
 
 describe('colours', () => {
   it('reads hex colours the way a person types them', () => {
@@ -53,6 +53,14 @@ describe('wallpapers', () => {
     // circles, lines and paths come from the first shapes; ellipses (notes), rects (bubbles, rounded boxes) and groups from the later ones
     for (const part of ['<circle', '<ellipse', '<rect', '<g ', '<path']) expect(svg).toContain(part);
     expect(svg.length).toBeGreaterThan(20000);
+  });
+  it('is jumbled but always the same: a fixed scatter, no two neighbours alike by position', () => {
+    const again = decodeURIComponent(doodleTile('#e8590c', false));
+    expect(again).toBe(decodeURIComponent(doodleTile('#e8590c', false)));
+    const units = new Set(Array.from({ length: 200 }, (_, i) => doodleUnit(Math.floor(i / 20), i % 20, 2)));
+    expect(units.size).toBeGreaterThan(150);
+    for (const u of units) { expect(u).toBeGreaterThanOrEqual(0); expect(u).toBeLessThan(1); }
+    expect(doodleUnit(3, 4, 5)).toBe(doodleUnit(3, 4, 5));
   });
   it('darkens a photo by the chosen amount, at most 70 percent, and falls back to doodles with no photo', () => {
     expect(wallpaperCss('photo', '#e8590c', false, 'blob:x', 25).image).toContain('rgba(0,0,0,0.25)');

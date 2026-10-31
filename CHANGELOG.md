@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2
+
+* The default wallpaper is jumbled and full: shapes sit off any grid, at different sizes, turned every way, with no empty patches. It repeats only every 1100 pixels.
+
 ## 0.5.1
 
 * If a browser signs you in but does not keep the sign-in (iPhone: Block All Cookies, a private tab, or another app's built-in browser), Ember now says so and says what to change. Before, it showed only "Unauthorized".

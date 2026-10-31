@@ -155,27 +155,48 @@ export function doodle(kind: number, x: number, y: number, r: number, turn: numb
   }
 }
 
-/** The doodles as a tile that repeats: scattered shapes in the accent colour, the way the big messengers draw their backgrounds. */
+/** A number from 0 up to 1 that is always the same for the same row, column and purpose (the Android app computes the identical one). */
+export function doodleUnit(row: number, col: number, salt: number): number {
+  let h = (Math.imul(row, 374761393) + Math.imul(col, 668265263) + Math.imul(salt, 1274126177)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return ((h & 0x7fffffff) % 10000) / 10000;
+}
+
+/**
+ * The doodles as a tile that repeats. Jumbled, not lined up, and full: every shape sits a little off its place, at its own size, turned any way,
+ * some a little fainter, the way the big messengers scatter theirs. A shape that crosses the edge of the tile is drawn again on the far side,
+ * so the tile joins up with itself.
+ */
 export function doodleTile(accent: string, dark: boolean): string {
-  const cell = 42;
-  const cols = 16;
-  const rows = 9;
+  const cell = 40;
+  const cols = 28;
+  const rows = 22;
   const w = cell * cols;
-  const h = Math.round(cell * 0.9 * rows);
-  const ink = `stroke="${accent}" stroke-opacity="${dark ? 0.26 : 0.22}"`;
+  const h = Math.round(cell * 0.95 * rows);
+  const base = dark ? 0.26 : 0.22;
   let shapes = '';
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const x = (row % 2 === 0 ? cell / 2 : cell) + col * cell;
-      const y = cell / 2 + row * cell * 0.9;
-      const kind = (row * 7 + col * 5 + Math.floor(row / 2) * 3) % DOODLE_KINDS;
-      const turn = ((row * 37 + col * 53) % 90) - 45;
-      shapes += doodle(kind, x, y, 8.5, turn);
-      // A shape on the right edge continues on the left of the next tile.
-      if (x >= w) shapes += doodle(kind, x - w, y, 8.5, turn);
+      const x = (row % 2 === 0 ? cell / 2 : cell) + col * cell + (doodleUnit(row, col, 2) - 0.5) * 0.4 * cell;
+      const y = cell / 2 + row * cell * 0.95 + (doodleUnit(row, col, 3) - 0.5) * 0.4 * cell;
+      const r = 8.5 * (0.8 + 0.3 * doodleUnit(row, col, 4));
+      const turn = doodleUnit(row, col, 5) * 360;
+      const kind = Math.min(DOODLE_KINDS - 1, Math.floor(doodleUnit(row, col, 6) * DOODLE_KINDS));
+      const opacity = (base * (0.8 + 0.2 * doodleUnit(row, col, 7))).toFixed(3);
+      let one = '';
+      for (const dx of [0, -w, w]) {
+        for (const dy of [0, -h, h]) {
+          const px = x + dx;
+          const py = y + dy;
+          if (px < -r * 2 || px > w + r * 2 || py < -r * 2 || py > h + r * 2) continue;
+          one += doodle(kind, px, py, r, turn);
+        }
+      }
+      shapes += `<g stroke-opacity="${opacity}">${one}</g>`;
     }
   }
-  return enc(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" ${ink} stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${shapes}</svg>`);
+  return enc(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" stroke="${accent}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${shapes}</svg>`);
 }
 
 function dotsTile(accent: string, dark: boolean): string {
