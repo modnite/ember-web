@@ -162,7 +162,7 @@ a { color: var(--primary); }
 .chat-header .who .title { font-weight: 600; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .chat-header .who .sub { font-size: 12.5px; color: var(--on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .chat-header .who .sub.typing { color: var(--primary); }
-.messages { flex: 1; min-height: 0; position: relative; background-color: var(--chat-bg); background-image: var(--wall-image, none); background-size: var(--wall-size, auto); padding: 8px 0; padding-left: var(--safe-left); padding-right: var(--safe-right); }
+.messages { flex: 1; min-height: 0; position: relative; background-color: var(--wall-color, var(--chat-bg)); background-image: var(--wall-image, none); background-size: var(--wall-size, auto); padding: 8px 0; padding-left: var(--safe-left); padding-right: var(--safe-right); }
 .day { text-align: center; margin: 10px 0 6px; }
 .day span, .event { display: inline-block; background: var(--container-high); color: var(--on-surface-variant); font-size: 12.5px; padding: 3px 12px; border-radius: 12px; }
 .event { display: block; width: fit-content; margin: 8px auto; }
@@ -419,7 +419,11 @@ svg:not([width]):not([class]) { width: 1.25em; height: 1.25em; fill: currentColo
 .wall { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; }
 .wall-preview { width: 100%; aspect-ratio: 3 / 4; border-radius: 12px; border: 1px solid var(--outline-variant); background-color: var(--chat-bg); background-position: center; }
 .wall.on .wall-preview { outline: 3px solid var(--primary); outline-offset: 2px; }
-input[type='range'] { accent-color: var(--primary); }
+input[type='range'] { -webkit-appearance: none; appearance: none; height: 28px; background: transparent; accent-color: var(--primary); }
+input[type='range']::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--container-highest); }
+input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; background: var(--primary); border: 0; box-shadow: var(--shadow); }
+input[type='range']::-moz-range-track { height: 6px; border-radius: 3px; background: var(--container-highest); }
+input[type='range']::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--primary); border: 0; }
 
 @keyframes nudge-shake { 0%, 100% { transform: translateX(0); } 12% { transform: translateX(-9px); } 25% { transform: translateX(8px); } 38% { transform: translateX(-7px); } 50% { transform: translateX(6px); } 63% { transform: translateX(-4px); } 78% { transform: translateX(3px); } }
 .chat.shake { animation: nudge-shake 0.7s ease-in-out; }
@@ -460,3 +464,10 @@ input[type='range'] { accent-color: var(--primary); }
 .sig-name { display: flex; flex-direction: column; min-width: 0; }
 .sig-name small { color: var(--on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mp-grid.stickers .mp-tile .sig-img img { padding: 4px; }
+
+/* Settings sit in two columns when the screen is wide, so sideways on a phone is not one long strip. */
+@media (min-width: 700px) and (orientation: landscape) {
+  .settings-cols { columns: 2; column-gap: 8px; }
+  .settings-cols > section { break-inside: avoid; }
+  .settings-cols > section:first-child .group-title { padding-top: 6px; }
+}

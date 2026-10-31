@@ -61,7 +61,7 @@ export function SoundRows() {
   const label = (slot: SoundSlot, choice: 'ember' | 'none' | 'file'): string => (choice === 'none' ? 'None' : choice === 'file' && names[slot] ? names[slot]! : SLOTS[slot].own);
   return (
     <>
-      <button type="button" className="setting" onClick={() => setOpen('message')}><Icon name="bell" className="ico" /><span className="main">Message sound<small>{label('message', message)}</small></span></button>
+      <button type="button" className="setting" onClick={() => setOpen('message')}><Icon name="music" className="ico" /><span className="main">Message sound<small>{label('message', message)}</small></span></button>
       <button type="button" className="setting" onClick={() => setOpen('call')}><Icon name="phone" className="ico" /><span className="main">Ringtone<small>{label('call', call)}</small></span></button>
       {open ? <SoundSheet slot={open} onClose={() => setOpen(null)} /> : null}
     </>

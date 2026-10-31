@@ -5,7 +5,8 @@ import { BIG_DOODLES, FILL_DOODLES } from './doodleShapes';
 import { loadPhoto } from './wallpaper';
 
 export type ThemeMode = 'system' | 'light' | 'dark' | 'black';
-export type WallpaperChoice = 'doodle' | 'gradient' | 'dots' | 'plain' | 'photo';
+/** What lies under the doodles: the chat's own colour (the theme's and the accent's), a stronger wash of the accent, or a photo. */
+export type WallpaperChoice = 'default' | 'accent' | 'photo';
 
 /** Ember's own orange plus a handful of others. A custom colour can be typed in as well. */
 export const ACCENTS: Array<{ name: string; hex: string | null }> = [
@@ -21,10 +22,8 @@ export const ACCENTS: Array<{ name: string; hex: string | null }> = [
 ];
 
 export const WALLPAPERS: Array<{ id: WallpaperChoice; label: string }> = [
-  { id: 'doodle', label: 'Doodles' },
-  { id: 'gradient', label: 'Gradient' },
-  { id: 'dots', label: 'Dots' },
-  { id: 'plain', label: 'Plain' },
+  { id: 'default', label: 'Default' },
+  { id: 'accent', label: 'Accent colour' },
 ];
 
 /** "#rgb" or "#rrggbb" (the # is optional) as a lower case "#rrggbb", or null when it is not a colour. */
@@ -114,8 +113,9 @@ export const BLACK_VARS: Record<string, string> = {
 
 const enc = (svg: string): string => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 
-const BIG_CELL = 66;
-const FILL_CELL = 16.5;
+const BIG_CELL = 70;
+const BIG_ROW = 63;
+const FILL_CELL = 17.5;
 
 /** A number from 0 up to 1 that is always the same for the same row, column and purpose (the Android app computes the identical one). */
 export function doodleUnit(row: number, col: number, salt: number): number {
@@ -125,7 +125,7 @@ export function doodleUnit(row: number, col: number, salt: number): number {
   return ((h & 0x7fffffff) % 10000) / 10000;
 }
 
-interface Placed {
+export interface Placed {
   x: number;
   y: number;
   r: number;
@@ -134,110 +134,166 @@ interface Placed {
   fade: number;
 }
 
-/** The large icon of a place: a little off its spot, a little different in size, tipped a little either way. */
-export function bigDoodle(row: number, col: number): Placed {
-  return {
-    x: (col + 0.5) * BIG_CELL + (doodleUnit(row, col, 2) - 0.5) * 0.36 * BIG_CELL,
-    y: (row + 0.5) * BIG_CELL + (doodleUnit(row, col, 3) - 0.5) * 0.36 * BIG_CELL,
-    r: 12 + 5 * doodleUnit(row, col, 4),
-    turn: (doodleUnit(row, col, 5) - 0.5) * 70,
-    kind: Math.min(BIG_DOODLES.length - 1, Math.floor(doodleUnit(row, col, 6) * BIG_DOODLES.length)),
-    fade: 0.8 + 0.2 * doodleUnit(row, col, 7),
-  };
-}
-
-/** The small shape of a place (most are dots), or null when a large icon is too close. `big` finds the large icon of a place, so a tile can wrap. */
-export function fillDoodle(row: number, col: number, big: (row: number, col: number) => Placed = bigDoodle): Placed | null {
-  const x = (col + 0.5) * FILL_CELL + (doodleUnit(row, col, 12) - 0.5) * 0.7 * FILL_CELL;
-  const y = (row + 0.5) * FILL_CELL + (doodleUnit(row, col, 13) - 0.5) * 0.7 * FILL_CELL;
-  const r = 2.5 + 3 * doodleUnit(row, col, 14);
-  const bigRow = Math.floor(y / BIG_CELL);
-  const bigCol = Math.floor(x / BIG_CELL);
-  for (let dr = -1; dr <= 1; dr++) {
-    for (let dc = -1; dc <= 1; dc++) {
-      const b = big(bigRow + dr, bigCol + dc);
-      if (Math.hypot(x - b.x, y - b.y) < b.r * 1.3 + r + 2) return null;
-    }
-  }
-  const pick = doodleUnit(row, col, 16);
-  const kind = pick < 0.4 ? 0 : 1 + Math.min(FILL_DOODLES.length - 2, Math.floor(doodleUnit(row, col, 17) * (FILL_DOODLES.length - 1)));
-  return { x, y, r, turn: doodleUnit(row, col, 15) * 360, kind, fade: 0.7 + 0.3 * doodleUnit(row, col, 18) };
-}
-
 const mod = (n: number, m: number): number => ((n % m) + m) % m;
 
 /**
- * The doodles as a tile that repeats: larger outline icons with small dots, rings and sparkles filling every gap between them, the way the big
- * messengers draw their backgrounds. Each shape is written once and used where it is placed. A shape that crosses the edge of the tile is drawn
- * again on the far side, so the tile joins up with itself.
+ * Where the large icons go. Rows are staggered, then every icon is moved a good way off its spot and pushed clear of the ones already placed,
+ * so nothing lines up. The kind is chosen at random from those not used near it, so one icon never turns up close to itself. With `wrap` the
+ * picture joins up with itself at the edges (a tile). Rows and columns must both be even then.
+ */
+export function layoutBig(rows: number, cols: number, wrap: boolean, kinds: number): Placed[] {
+  const placed: Array<Placed | null> = new Array<Placed | null>(rows * cols).fill(null);
+  const w = cols * BIG_CELL;
+  const h = rows * BIG_ROW;
+  const near = (r: number, c: number): { p: Placed; dx: number; dy: number } | null => {
+    let rr = r;
+    let cc = c;
+    let dx = 0;
+    let dy = 0;
+    if (wrap) {
+      rr = mod(r, rows);
+      cc = mod(c, cols);
+      dx = Math.floor(c / cols) * w;
+      dy = Math.floor(r / rows) * h;
+    } else if (r < 0 || c < 0 || r >= rows || c >= cols) return null;
+    const p = placed[rr * cols + cc];
+    return p ? { p, dx, dy } : null;
+  };
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      let x = (col + 0.5 + 0.5 * (row & 1)) * BIG_CELL + (doodleUnit(row, col, 2) - 0.5) * 0.5 * BIG_CELL;
+      let y = (row + 0.5) * BIG_ROW + (doodleUnit(row, col, 3) - 0.5) * 0.5 * BIG_ROW;
+      const r = 12 + 4 * doodleUnit(row, col, 4);
+      const used = new Set<number>();
+      for (let dr = -3; dr <= 3; dr++) {
+        for (let dc = -3; dc <= 3; dc++) {
+          const n = near(row + dr, col + dc);
+          if (!n) continue;
+          used.add(n.p.kind);
+          if (Math.abs(dr) > 2 || Math.abs(dc) > 2) continue;
+          const nx = n.p.x + n.dx;
+          const ny = n.p.y + n.dy;
+          const d = Math.hypot(x - nx, y - ny);
+          const least = r + n.p.r + 5;
+          if (d < least) {
+            const a = doodleUnit(row, col, 9) * Math.PI * 2;
+            const ux = d < 0.01 ? Math.cos(a) : (x - nx) / d;
+            const uy = d < 0.01 ? Math.sin(a) : (y - ny) / d;
+            x += ux * (least - d);
+            y += uy * (least - d);
+          }
+        }
+      }
+      const free: number[] = [];
+      for (let k = 0; k < kinds; k++) if (!used.has(k)) free.push(k);
+      const pool = free.length ? free : Array.from({ length: kinds }, (_, k) => k);
+      placed[row * cols + col] = {
+        x, y, r,
+        turn: (doodleUnit(row, col, 5) - 0.5) * 70,
+        kind: pool[Math.min(pool.length - 1, Math.floor(doodleUnit(row, col, 6) * pool.length))]!,
+        fade: 0.8 + 0.2 * doodleUnit(row, col, 7),
+      };
+    }
+  }
+  return placed as Placed[];
+}
+
+/** The small shape of a place (most are dots), or null when a large icon is too close. `bigs` are the large icons in range of it. */
+export function fillDoodle(row: number, col: number, bigs: Placed[], kinds: number): Placed | null {
+  const x = (col + 0.5) * FILL_CELL + (doodleUnit(row, col, 12) - 0.5) * 0.8 * FILL_CELL;
+  const y = (row + 0.5) * FILL_CELL + (doodleUnit(row, col, 13) - 0.5) * 0.8 * FILL_CELL;
+  const r = 2.5 + 3 * doodleUnit(row, col, 14);
+  for (const b of bigs) if (Math.hypot(x - b.x, y - b.y) < b.r * 1.3 + r + 2) return null;
+  const pick = doodleUnit(row, col, 16);
+  const kind = pick < 0.35 ? 0 : 1 + Math.min(kinds - 2, Math.floor(doodleUnit(row, col, 17) * (kinds - 1)));
+  return { x, y, r, turn: doodleUnit(row, col, 15) * 360, kind, fade: 0.7 + 0.3 * doodleUnit(row, col, 18) };
+}
+
+/**
+ * The doodles as a tile: large outline icons with small dots, rings and sparkles filling every gap between them, the way the big messengers
+ * draw their backgrounds. Each shape is written once and used where it is placed. The tile is larger than a chat window, so the picture does not
+ * visibly repeat, and it joins up with itself at the edges when a screen is larger still.
  */
 export function doodleTile(accent: string, dark: boolean): string {
-  const bigCols = 12;
-  const bigRows = 10;
+  const bigCols = 22;
+  const bigRows = 20;
   const w = BIG_CELL * bigCols;
-  const h = BIG_CELL * bigRows;
+  const h = BIG_ROW * bigRows;
   const base = dark ? 0.26 : 0.22;
-  // The large icon of any place, wrapped so the picture repeats exactly at the tile's edges.
-  const wrapped = (row: number, col: number): Placed => {
-    const rr = mod(row, bigRows);
-    const cc = mod(col, bigCols);
-    const b = bigDoodle(rr, cc);
-    return { ...b, x: b.x + ((col - cc) / bigCols) * w, y: b.y + ((row - rr) / bigRows) * h };
+  const bigs = layoutBig(bigRows, bigCols, true, BIG_DOODLES.length);
+  // Every large icon (and its copies one tile away) by place, so a small shape only looks at the ones near it.
+  const bucket = new Map<string, Placed[]>();
+  const key = (x: number, y: number): string => `${Math.floor(x / BIG_CELL)},${Math.floor(y / BIG_ROW)}`;
+  for (const b of bigs) {
+    for (const dx of [0, -w, w]) {
+      for (const dy of [0, -h, h]) {
+        const q = { ...b, x: b.x + dx, y: b.y + dy };
+        if (q.x < -BIG_CELL * 2 || q.x > w + BIG_CELL * 2 || q.y < -BIG_ROW * 2 || q.y > h + BIG_ROW * 2) continue;
+        const k = key(q.x, q.y);
+        const list = bucket.get(k);
+        if (list) list.push(q);
+        else bucket.set(k, [q]);
+      }
+    }
+  }
+  const nearBigs = (x: number, y: number): Placed[] => {
+    const out: Placed[] = [];
+    const cx = Math.floor(x / BIG_CELL);
+    const cy = Math.floor(y / BIG_ROW);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) out.push(...(bucket.get(`${cx + i},${cy + j}`) ?? []));
+    return out;
   };
   const defs = [...BIG_DOODLES.map((d, i) => `<path id="b${i}" d="${d}" vector-effect="non-scaling-stroke"/>`), ...FILL_DOODLES.map((d, i) => `<path id="f${i}" d="${d}" vector-effect="non-scaling-stroke"/>`)].join('');
-  let uses = '';
+  // Shapes are grouped by how faint they are, so the line width and opacity are written once per group instead of once per shape.
+  const groups = new Map<string, string>();
   const put = (id: string, p: Placed, width: number): void => {
     for (const dx of [0, -w, w]) {
       for (const dy of [0, -h, h]) {
         const x = p.x + dx;
         const y = p.y + dy;
         if (x < -p.r * 1.5 || x > w + p.r * 1.5 || y < -p.r * 1.5 || y > h + p.r * 1.5) continue;
-        uses += `<use href="#${id}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${p.turn.toFixed(0)}) scale(${p.r.toFixed(1)})" stroke-width="${width}" stroke-opacity="${(base * p.fade).toFixed(3)}"/>`;
+        const g = `${width}/${(Math.round(p.fade * 5) / 5).toFixed(1)}`;
+        groups.set(g, (groups.get(g) ?? '') + `<use href="#${id}" transform="translate(${Math.round(x)} ${Math.round(y)}) rotate(${Math.round(p.turn)}) scale(${p.r.toFixed(1)})"/>`);
       }
     }
   };
-  for (let row = 0; row < bigRows; row++) for (let col = 0; col < bigCols; col++) put(`b${bigDoodle(row, col).kind}`, bigDoodle(row, col), 1.9);
+  for (const b of bigs) put(`b${b.kind}`, b, 1.9);
   for (let row = 0; row < h / FILL_CELL; row++) {
     for (let col = 0; col < w / FILL_CELL; col++) {
-      const p = fillDoodle(row, col, wrapped);
+      const x = (col + 0.5) * FILL_CELL;
+      const y = (row + 0.5) * FILL_CELL;
+      const p = fillDoodle(row, col, nearBigs(x, y), FILL_DOODLES.length);
       if (p) put(`f${p.kind}`, p, 1.5);
     }
   }
-  return enc(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" stroke="${accent}" stroke-linecap="round" stroke-linejoin="round"><defs>${defs}</defs>${uses}</svg>`);
+  const body = [...groups.entries()].map(([g, uses]) => {
+    const [width, fade] = g.split('/');
+    return `<g stroke-width="${width}" stroke-opacity="${(base * Number(fade)).toFixed(3)}">${uses}</g>`;
+  }).join('');
+  return enc(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" stroke="${accent}" stroke-linecap="round" stroke-linejoin="round"><defs>${defs}</defs>${body}</svg>`);
 }
 
-function dotsTile(accent: string, dark: boolean): string {
-  const gap = 22;
-  const h = gap * 0.8 * 2;
-  return enc(`<svg xmlns="http://www.w3.org/2000/svg" width="${gap * 2}" height="${h}" viewBox="0 0 ${gap * 2} ${h}" fill="${accent}" fill-opacity="${dark ? 0.22 : 0.2}"><circle cx="${gap / 2}" cy="${gap * 0.4}" r="1.6"/><circle cx="${gap * 1.5}" cy="${gap * 0.4}" r="1.6"/><circle cx="${gap}" cy="${gap * 1.2}" r="1.6"/><circle cx="0" cy="${gap * 1.2}" r="1.6"/><circle cx="${gap * 2}" cy="${gap * 1.2}" r="1.6"/></svg>`);
+/** The flat colour of a wallpaper: the chat's own colour, or a wash of the accent that follows the theme (light, dark or black). */
+export function washColor(choice: WallpaperChoice, accent: string | null, dark: boolean, black: boolean): string {
+  if (choice !== 'accent') return 'var(--chat-bg)';
+  const h = accent ? toHsl(accent)[0] : 21;
+  if (!dark) return hsl(h, 0.55, 0.86);
+  return black ? hsl(h, 0.35, 0.1) : hsl(h, 0.4, 0.17);
 }
 
-/** The CSS of a wallpaper: layers over the chat's own background colour. */
-export function wallpaperCss(choice: WallpaperChoice, accent: string, dark: boolean, photoUrl: string | null, dim: number): { image: string; size: string } {
-  switch (choice) {
-    case 'photo':
-      if (photoUrl) {
-        const d = Math.min(70, Math.max(0, dim)) / 100;
-        return { image: `${d > 0 ? `linear-gradient(rgba(0,0,0,${d}), rgba(0,0,0,${d})), ` : ''}url("${photoUrl}")`, size: 'cover' };
-      }
-      return wallpaperCss('doodle', accent, dark, null, 0);
-    case 'plain':
-      return { image: 'none', size: 'auto' };
-    case 'gradient': {
-      const a = hexA(accent, dark ? 0.3 : 0.26);
-      const b = hexA(accent, dark ? 0.04 : 0.03);
-      return { image: `linear-gradient(135deg, ${a}, ${b})`, size: 'cover' };
-    }
-    case 'dots':
-      return { image: dotsTile(accent, dark), size: 'auto' };
-    default:
-      return { image: `${doodleTile(accent, dark)}, linear-gradient(${hexA(accent, dark ? 0.05 : 0.06)}, ${hexA(accent, dark ? 0.05 : 0.06)})`, size: 'auto' };
-  }
-}
-
-function hexA(hex: string, a: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+/**
+ * The CSS of a wallpaper, from the top layer down: the dimming, then the doodles, then a photo, over the flat colour. The doodles take the accent
+ * colour. Dimming (0 to 70 percent) darkens everything under it.
+ */
+export function wallpaperCss(choice: WallpaperChoice, accent: string, dark: boolean, photoUrl: string | null, dim: number, doodles: boolean): { image: string; size: string } {
+  const layers: Array<[string, string]> = [];
+  const d = Math.min(70, Math.max(0, dim)) / 100;
+  if (d > 0) layers.push([`linear-gradient(rgba(0,0,0,${d}), rgba(0,0,0,${d}))`, 'auto']);
+  const photo = choice === 'photo' && photoUrl;
+  if (doodles && !photo) layers.push([doodleTile(accent, dark), `${BIG_CELL * 22}px ${BIG_ROW * 20}px`]);
+  if (photo) layers.push([`url("${photoUrl}")`, 'cover']);
+  if (!layers.length) return { image: 'none', size: 'auto' };
+  return { image: layers.map((l) => l[0]).join(', '), size: layers.map((l) => l[1]).join(', ') };
 }
 
 export interface Look {
@@ -245,6 +301,8 @@ export interface Look {
   /** "#rrggbb", or '' for Ember's own orange. */
   accent: string;
   wallpaper: WallpaperChoice;
+  /** The doodles over a flat colour (not over a photo). */
+  doodles: boolean;
   wallpaperDim: number;
 }
 
@@ -269,8 +327,8 @@ export async function applyLook(look: Look): Promise<void> {
   if (dark && look.theme === 'black') set(BLACK_VARS);
   const ink = accent ? (dark ? hslToHex(toHsl(accent)[0], Math.min(Math.max(toHsl(accent)[1], 0.35), 0.95), 0.68) : accent) : dark ? '#ff8a55' : '#e8590c';
   const photo = look.wallpaper === 'photo' ? await loadPhoto() : null;
-  const w = wallpaperCss(look.wallpaper, ink, dark, photo, look.wallpaperDim);
-  set({ '--wall-image': w.image, '--wall-size': w.size });
+  const w = wallpaperCss(photo ? look.wallpaper : look.wallpaper === 'photo' ? 'default' : look.wallpaper, ink, dark, photo, look.wallpaperDim, look.doodles);
+  set({ '--wall-image': w.image, '--wall-size': w.size, '--wall-color': washColor(look.wallpaper === 'photo' ? 'default' : look.wallpaper, accent, dark, look.theme === 'black') });
   const bar = getComputedStyle(root).getPropertyValue('--bg').trim() || (dark ? '#16110e' : '#fffbf8');
   for (const m of document.querySelectorAll('meta[name="theme-color"]')) m.setAttribute('content', look.theme === 'black' && dark ? '#000000' : bar);
 }

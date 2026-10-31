@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+* Wallpapers work like the big messengers: a flat colour that follows the theme and accent, a switch for doodles, and a dimming slider. Accent colour washes the flat colour. A photo can still be used.
+* The doodles are now 84 large icons and 28 small shapes, placed off any grid, with no icon near a copy of itself. The Android app draws the same picture.
+* The nudge button uses the same waving hand as the Android app, in the accent colour, instead of an emoji.
+* Settings are regrouped: Calls sits next to Chats, GIFs and stickers after it, account and security together, About at the end. Shorter wording. Two columns when the screen is wide and short.
+
 ## 0.6.0
 
 * The default wallpaper is a dense scatter in the way of the big messengers: 34 larger outline icons (camera, cup, headphones, umbrella, paw, gift and more) with small dots, rings and sparkles filling every gap. The same picture as in the Android app.

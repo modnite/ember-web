@@ -106,15 +106,21 @@ test('appearance: black theme, accent colour and wallpaper apply and stay', asyn
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())).not.toBe('');
   await expect(page.getByRole('button', { name: /^Accent colour/ })).toContainText('Blue');
   await page.getByRole('button', { name: /^Chat wallpaper/ }).click();
-  await page.getByRole('radio', { name: 'Gradient' }).click();
+  await expect(page.getByRole('button', { name: /^Chat wallpaper/ })).toContainText('with doodles');
+  await page.getByRole('radio', { name: 'Accent colour' }).click();
+  await page.getByRole('switch', { name: 'Doodles' }).uncheck();
+  await page.locator('#wall-dim').fill('30');
+  await expect(page.getByText('Dimming: 30%')).toBeVisible();
   await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: /^Chat wallpaper/ })).toContainText('Accent colour, no doodles');
   await page.screenshot({ path: `test-results/${info.project.name}-appearance.png` });
   await page.reload();
   await expect(root).toHaveAttribute('data-black', '1');
   await expect(page.getByRole('button', { name: /^Accent colour/ })).toContainText('Blue');
   await page.getByRole('button', { name: /^Chats$/ }).click();
   await page.getByRole('button', { name: /Weekend plans/ }).click();
-  await expect.poll(() => page.locator('.messages').evaluate((el) => getComputedStyle(el).backgroundImage)).toContain('linear-gradient');
+  await expect.poll(() => page.locator('.messages').evaluate((el) => getComputedStyle(el).backgroundImage)).toContain('rgba(0, 0, 0, 0.3)');
+  await expect.poll(() => page.locator('.messages').evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgb(0, 0, 0)');
   await page.screenshot({ path: `test-results/${info.project.name}-black-chat.png` });
   // back to the defaults for the next test
   await page.evaluate(() => localStorage.removeItem('ember.prefs'));

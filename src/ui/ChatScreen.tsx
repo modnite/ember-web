@@ -456,7 +456,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
             <span className={`sub${typers.length ? ' typing' : ''}`} aria-live="polite">{sub}</span>
           </span>
         </button>
-        {nudgeButton ? <button type="button" className="icon-btn" aria-label="Nudge" title="Nudge" onClick={() => store.sendNudge(roomId)}><Emoji emoji="👋" size={26} /></button> : null}
+        {nudgeButton ? <button type="button" className="icon-btn" style={{ color: 'var(--primary)' }} aria-label="Nudge" title="Nudge" onClick={() => store.sendNudge(roomId)}><Icon name="wave" /></button> : null}
         <IconButton icon="phone" label="Voice call" onClick={() => void startCall(roomId, false)} />
         <IconButton icon="video" label="Video call" onClick={() => void startCall(roomId, true)} />
         <IconButton icon="more" label="More" onClick={() => setInfo(true)} />
@@ -550,7 +550,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
           <MenuItem icon="photo" label="Photo or video" onClick={() => { setAttach(false); picker.current?.click(); }} />
           <MenuItem icon="camera" label={isIOS() ? 'Take a photo' : 'Camera'} onClick={() => { setAttach(false); camera.current?.click(); }} />
           <MenuItem icon="file" label="File" onClick={() => { setAttach(false); docs.current?.click(); }} />
-          {!nudgeButton ? <MenuItem icon="chat" label="Nudge" onClick={() => { setAttach(false); store.sendNudge(roomId); }} /> : null}
+          {!nudgeButton ? <MenuItem icon="wave" label="Nudge" onClick={() => { setAttach(false); store.sendNudge(roomId); }} /> : null}
         </Sheet>
       ) : null}
 

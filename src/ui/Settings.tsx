@@ -27,9 +27,9 @@ function Action({ icon, title, sub, onClick, danger }: { icon: IconName; title: 
 
 const PUSH_TEXT: Record<PushState, string> = {
   unsupported: 'This browser cannot show notifications.',
-  'needs-install': 'On iPhone and iPad, add Ember to your Home Screen first (Share, then Add to Home Screen). Notifications work from the installed app.',
-  blocked: 'Notifications are blocked. Allow them for this site in the browser or phone settings.',
-  off: 'Off. Turn on to hear about new messages when Ember is closed.',
+  'needs-install': 'Add Ember to your Home Screen first. Notifications work from the installed app.',
+  blocked: 'Blocked. Allow notifications for this site in your browser or phone settings.',
+  off: 'Hear about new messages when Ember is closed.',
   on: 'On for this browser.',
   'server-off': 'This server has no push notifications set up.',
 };
@@ -75,9 +75,10 @@ export function Settings() {
         </div>
         <Action icon="edit" title="Name and status" sub={me?.statusMessage || me?.displayName} onClick={() => setDialog('name')} />
 
-        <Group title="Notifications">
+        <div className="settings-cols">
+        <Group title="Notifications and sounds">
           <Toggle icon="bell" title="Message and call alerts" sub={PUSH_TEXT[push]} checked={push === 'on'} disabled={push !== 'on' && push !== 'off'} onChange={(v) => void togglePush(v)} />
-          <Toggle icon="bell" title="Sounds" sub="Short sounds for new messages and calls" checked={prefs.sounds} onChange={(v) => set('sounds', v)} />
+          <Toggle icon="music" title="Sounds in chats and calls" sub="Messages arriving, sending, ringing" checked={prefs.sounds} onChange={(v) => set('sounds', v)} />
           <SoundRows />
           {push === 'on' ? <Action icon="bell" title="Send a test notification" onClick={() => void api.pushTest().then((r) => showToast(r.sent ? 'Sent. It should arrive in a moment.' : r.error ?? 'Nothing was sent.')).catch((e: Error) => showToast(e.message))} /> : null}
           {ios && !installed ? <Action icon="info" title="Add Ember to your Home Screen" sub="Needed for notifications on iPhone and iPad" onClick={() => setDialog('ios')} /> : null}
@@ -90,38 +91,39 @@ export function Settings() {
 
         <Group title="Chats">
           <Toggle icon="photo" title="Send photos in HD" sub="Sharper and larger. Off sends a smaller copy that arrives faster." checked={prefs.sendHd} onChange={(v) => set('sendHd', v)} />
-          <Toggle icon="chat" title="Nudge button" sub="In the top bar of every chat. Off puts Nudge in the attach menu." checked={prefs.nudgeButton} onChange={(v) => set('nudgeButton', v)} />
+          <Toggle icon="wave" title="Nudge button" sub="In the top bar of every chat. Off puts it in the attach menu." checked={prefs.nudgeButton} onChange={(v) => set('nudgeButton', v)} />
           <Toggle icon="send" title="Enter sends" sub="Off: Enter adds a new line. Ctrl or Cmd with Enter always sends." checked={prefs.enterSends} onChange={(v) => set('enterSends', v)} />
           <Toggle icon="edit" title="Check spelling" sub="Underline misspelt words in the message box" checked={prefs.spellcheck} onChange={(v) => set('spellcheck', v)} />
         </Group>
 
-        <Group title="GIFs and stickers">
-          <div className="setting"><Icon name="photo" className="ico" /><span className="main"><label htmlFor="giphy">Giphy key</label><small>Your own key from developers.giphy.com. Without one, Giphy stays off.</small><input id="giphy" className="key-input" type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} value={prefs.giphyKey} onChange={(e) => set('giphyKey', e.target.value)} /></span></div>
-          <div className="setting"><Icon name="photo" className="ico" /><span className="main"><label htmlFor="imgur">Imgur client ID</label><small>Your own ID from api.imgur.com. Without one, Imgur stays off.</small><input id="imgur" className="key-input" type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} value={prefs.imgurId} onChange={(e) => set('imgurId', e.target.value)} /></span></div>
-        </Group>
-
         <Group title="Calls">
           <Toggle icon="camera" title="Mirror my own picture" sub="You see yourself like in a mirror. Others see you as you are." checked={prefs.mirrorSelf} onChange={(v) => set('mirrorSelf', v)} />
-          <div className="setting"><Icon name="flip" className="ico" /><span className="main">Flip front camera for others<small>Auto flips on Samsung phones, whose cameras send an already flipped picture</small></span><Seg label="Flip front camera" value={prefs.flipFront} options={[['auto', 'Auto'], ['on', 'On'], ['off', 'Off']]} onChange={(v) => set('flipFront', v)} /></div>
+          <div className="setting"><Icon name="flip" className="ico" /><span className="main">Flip front camera<small>Auto flips on Samsung phones, which send an already flipped picture</small></span><Seg label="Flip front camera" value={prefs.flipFront} options={[['auto', 'Auto'], ['on', 'On'], ['off', 'Off']]} onChange={(v) => set('flipFront', v)} /></div>
         </Group>
 
-        <Group title="Security">
+        <Group title="GIFs and stickers">
+          <div className="setting"><Icon name="photo" className="ico" /><span className="main"><label htmlFor="giphy">Giphy key</label><small>From developers.giphy.com. Giphy stays off without one.</small><input id="giphy" className="key-input" type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} value={prefs.giphyKey} onChange={(e) => set('giphyKey', e.target.value)} /></span></div>
+          <div className="setting"><Icon name="photo" className="ico" /><span className="main"><label htmlFor="imgur">Imgur client ID</label><small>From api.imgur.com. Imgur stays off without one.</small><input id="imgur" className="key-input" type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} value={prefs.imgurId} onChange={(e) => set('imgurId', e.target.value)} /></span></div>
+        </Group>
+
+        <Group title="Account and security">
           <div className="setting">
             <Icon name="lock" className="ico" />
             <span className="main">End-to-end encryption<small>{e2ee.status === 'ready' ? 'Set up in this browser' : e2ee.status === 'waiting' ? 'Waiting for another device to approve this browser' : 'Not set up in this browser'}</small></span>
             {e2ee.status !== 'ready' ? <button className="btn tonal" disabled={e2ee.busy} onClick={() => void setupE2ee(e2ee.status !== 'waiting')}>{e2ee.status === 'waiting' ? 'Check' : 'Set up'}</button> : null}
           </div>
-          {info?.features?.twoStep !== false ? <Action icon="shield" title="Two-step sign-in" sub="A code from an authenticator app when you sign in" onClick={() => setDialog('twostep')} /> : null}
+          {info?.features?.twoStep !== false ? <Action icon="shield" title="Two-step sign-in" sub="A code from an authenticator app" onClick={() => setDialog('twostep')} /> : null}
           <Action icon="edit" title="Username" sub={`@${me?.username}`} onClick={() => setDialog('username')} />
           <Action icon="lock" title="Change password" onClick={() => setDialog('password')} />
           <Action icon="people" title="Blocked people" onClick={() => setDialog('blocked')} />
         </Group>
 
-        <Group title="Help">
+        <Group title="About">
           <Toggle icon="info" title="Send crash reports" sub="To your Hearth server, so a fix can be made" checked={prefs.crashReports} onChange={(v) => set('crashReports', v)} />
           <div className="setting"><Icon name="info" className="ico" /><span className="main">Ember web {__APP_VERSION__}<small>{info?.name ?? 'Hearth server'}{info?.version ? ` ${info.version}` : ''} · {location.host}</small></span></div>
           <Action icon="logout" title="Sign out" danger onClick={() => void signOut()} />
         </Group>
+        </div>
       </div>
 
       {dialog === 'name' && me ? <NameDialog me={me} onSave={async (n, s) => { await updateProfile({ displayName: n, statusMessage: s }); setDialog(null); }} onClose={() => setDialog(null)} /> : null}

@@ -43,6 +43,7 @@ export function App() {
   const theme = usePrefs((s) => s.theme);
   const accent = usePrefs((s) => s.accent);
   const wallpaper = usePrefs((s) => s.wallpaper);
+  const doodles = usePrefs((s) => s.doodles);
   const wallpaperDim = usePrefs((s) => s.wallpaperDim);
   const wallpaperPhoto = usePrefs((s) => s.wallpaperPhoto);
   const wide = useWide();
@@ -50,14 +51,14 @@ export function App() {
   const [hash, setHash] = useState(location.hash);
   const [update, setUpdate] = useState(false);
 
-  useEffect(() => { void applyLook({ theme, accent, wallpaper, wallpaperDim }); }, [theme, accent, wallpaper, wallpaperDim, wallpaperPhoto]);
+  useEffect(() => { void applyLook({ theme, accent, wallpaper, doodles, wallpaperDim }); }, [theme, accent, wallpaper, doodles, wallpaperDim, wallpaperPhoto]);
   useEffect(() => {
     if (theme !== 'system') return;
     const q = window.matchMedia('(prefers-color-scheme: dark)');
-    const on = (): void => { void applyLook({ theme, accent, wallpaper, wallpaperDim }); };
+    const on = (): void => { void applyLook({ theme, accent, wallpaper, doodles, wallpaperDim }); };
     q.addEventListener('change', on);
     return () => q.removeEventListener('change', on);
-  }, [theme, accent, wallpaper, wallpaperDim]);
+  }, [theme, accent, wallpaper, doodles, wallpaperDim]);
   useEffect(() => { void useStore.getState().init(); onUpdateReady(() => setUpdate(true)); }, []);
   useEffect(() => {
     const on = (): void => setHash(location.hash);

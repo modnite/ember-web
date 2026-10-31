@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePrefs, type Prefs } from '../lib/prefs';
-import { ACCENTS, WALLPAPERS, accentName, onColor, parseHex, wallpaperCss, type WallpaperChoice } from '../lib/theme';
+import { ACCENTS, WALLPAPERS, accentName, onColor, parseHex, wallpaperCss, washColor, type WallpaperChoice } from '../lib/theme';
 import { hasPhoto, loadPhoto, savePhoto } from '../lib/wallpaper';
 import { useStore } from '../lib/store';
-import { Icon, Sheet, type IconName } from './kit';
+import { Icon, Sheet, Toggle, type IconName } from './kit';
 
 const THEMES: Array<[Prefs['theme'], string]> = [
   ['system', 'Same as the device'],
@@ -75,13 +75,21 @@ function AccentSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Preview({ choice, photo, dim }: { choice: WallpaperChoice; photo: string | null; dim: number }) {
-  const w = wallpaperCss(choice, currentInk(), isDark(), photo, dim);
-  return <span className="wall-preview" style={{ backgroundImage: w.image, backgroundSize: w.size }} />;
+/** A small picture of the wallpaper as chosen: its flat colour, the doodles if they are on, and the dimming. */
+function Preview({ choice, photo, doodles, dim }: { choice: WallpaperChoice; photo: string | null; doodles: boolean; dim: number }) {
+  const accent = parseHex(useAccent());
+  const dark = isDark();
+  const w = wallpaperCss(choice, currentInk(), dark, photo, dim, doodles);
+  // The tile is as big as a window; here it is shown smaller so a handful of shapes can be seen.
+  const size = w.size.replace(/\d+px \d+px/, '560px 460px');
+  return <span className="wall-preview" style={{ backgroundColor: washColor(choice, accent, dark, document.documentElement.dataset.black === '1'), backgroundImage: w.image, backgroundSize: size }} />;
 }
+
+const useAccent = (): string => usePrefs((s) => s.accent);
 
 function WallpaperSheet({ onClose }: { onClose: () => void }) {
   const wallpaper = usePrefs((s) => s.wallpaper);
+  const doodles = usePrefs((s) => s.doodles);
   const dim = usePrefs((s) => s.wallpaperDim);
   const set = usePrefs((s) => s.set);
   const showToast = useStore((s) => s.showToast);
@@ -90,11 +98,11 @@ function WallpaperSheet({ onClose }: { onClose: () => void }) {
   useEffect(() => { void loadPhoto().then(setPhoto); }, []);
   const options: Array<{ id: WallpaperChoice; label: string }> = [...WALLPAPERS, ...(photo ? [{ id: 'photo' as const, label: 'Your photo' }] : [])];
   return (
-    <Sheet title="Chat wallpaper" onClose={onClose} actions={<><button className="btn text" onClick={() => set({ wallpaper: 'doodle' })}>Reset</button><button className="btn" onClick={onClose}>Done</button></>}>
+    <Sheet title="Chat wallpaper" onClose={onClose} actions={<><button className="btn text" onClick={() => set({ wallpaper: 'default', doodles: true, wallpaperDim: 0 })}>Reset</button><button className="btn" onClick={onClose}>Done</button></>}>
       <div className="walls" role="radiogroup" aria-label="Chat wallpaper">
         {options.map((o) => (
           <button key={o.id} type="button" role="radio" aria-checked={wallpaper === o.id} className={`wall${wallpaper === o.id ? ' on' : ''}`} onClick={() => set({ wallpaper: o.id })}>
-            <Preview choice={o.id} photo={photo} dim={dim} />
+            <Preview choice={o.id} photo={photo} doodles={doodles} dim={dim} />
             <span>{o.label}</span>
           </button>
         ))}
@@ -109,13 +117,10 @@ function WallpaperSheet({ onClose }: { onClose: () => void }) {
           set({ wallpaper: 'photo', wallpaperPhoto: usePrefs.getState().wallpaperPhoto + 1 });
         });
       }} />
-      <button type="button" className="btn tonal block" style={{ marginTop: 12 }} onClick={() => pick.current?.click()}>Choose a photo</button>
-      {wallpaper === 'photo' ? (
-        <>
-          <label className="field-label" htmlFor="wall-dim">Darken the photo: {dim}%</label>
-          <input id="wall-dim" type="range" min={0} max={70} step={5} value={dim} onChange={(e) => set({ wallpaperDim: Number(e.target.value) })} style={{ width: '100%' }} />
-        </>
-      ) : null}
+      <button type="button" className="btn tonal block" style={{ marginTop: 12 }} onClick={() => pick.current?.click()}>{photo ? 'Choose another photo' : 'Choose a photo'}</button>
+      {wallpaper !== 'photo' ? <Toggle title="Doodles" checked={doodles} onChange={(v) => set({ doodles: v })} /> : null}
+      <label className="field-label" htmlFor="wall-dim">Dimming: {dim}%</label>
+      <input id="wall-dim" type="range" min={0} max={70} step={5} value={dim} onChange={(e) => set({ wallpaperDim: Number(e.target.value) })} style={{ width: '100%' }} />
     </Sheet>
   );
 }
@@ -129,7 +134,8 @@ export function AppearanceRows() {
   const [photoKept, setPhotoKept] = useState(false);
   useEffect(() => { void hasPhoto().then(setPhotoKept); }, [wallpaper]);
   const themeLabel = THEMES.find(([id]) => id === theme)?.[1].replace(/ \(.*/, '') ?? '';
-  const wallLabel = wallpaper === 'photo' && photoKept ? 'Your photo' : WALLPAPERS.find((w) => w.id === wallpaper)?.label ?? 'Doodles';
+  const doodles = usePrefs((st) => st.doodles);
+  const wallLabel = (wallpaper === 'photo' && photoKept ? 'Your photo' : WALLPAPERS.find((w) => w.id === wallpaper)?.label ?? 'Default') + (wallpaper !== 'photo' ? (doodles ? ', with doodles' : ', no doodles') : '');
   return (
     <>
       <Row icon="palette" title="Theme" sub={themeLabel} onClick={() => setDialog('theme')} />

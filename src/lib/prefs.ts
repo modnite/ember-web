@@ -5,7 +5,10 @@ export interface Prefs {
   theme: 'system' | 'light' | 'dark' | 'black';
   /** The accent colour as "#rrggbb", or empty for Ember's own orange. */
   accent: string;
-  wallpaper: 'doodle' | 'gradient' | 'dots' | 'plain' | 'photo';
+  /** The flat colour under the doodles: the chat's own, a wash of the accent, or a photo. */
+  wallpaper: 'default' | 'accent' | 'photo';
+  /** The doodles over the flat colour. */
+  doodles: boolean;
   /** How much a photo wallpaper is darkened, 0 to 70. */
   wallpaperDim: number;
   /** Counts photo changes, so the page redraws the wallpaper. */
@@ -35,11 +38,20 @@ export interface Prefs {
 }
 
 const KEY = 'ember.prefs';
-const DEFAULTS: Prefs = { theme: 'system', accent: '', wallpaper: 'doodle', wallpaperDim: 25, wallpaperPhoto: 0, enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, sendHd: false, nudgeButton: typeof window === 'undefined' || window.innerWidth >= 480, messageSound: 'ember', callSound: 'ember', micId: '', camId: '', speakerId: '', giphyKey: '', imgurId: '' };
+const DEFAULTS: Prefs = { theme: 'system', accent: '', wallpaper: 'default', doodles: true, wallpaperDim: 0, wallpaperPhoto: 0, enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, sendHd: false, nudgeButton: typeof window === 'undefined' || window.innerWidth >= 480, messageSound: 'ember', callSound: 'ember', micId: '', camId: '', speakerId: '', giphyKey: '', imgurId: '' };
+
+/** The first wallpaper choices (doodles, gradient, dots, plain) become a flat colour with the doodles switched on or off. */
+function migrate(saved: Record<string, unknown>): Record<string, unknown> {
+  const w = saved.wallpaper;
+  if (w === 'doodle' || w === 'dots') return { ...saved, wallpaper: 'default', doodles: true };
+  if (w === 'plain') return { ...saved, wallpaper: 'default', doodles: false };
+  if (w === 'gradient') return { ...saved, wallpaper: 'accent', doodles: false };
+  return saved;
+}
 
 function load(): Prefs {
   try {
-    return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Prefs>) };
+    return { ...DEFAULTS, ...(migrate(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, unknown>) as Partial<Prefs>) };
   } catch {
     return { ...DEFAULTS };
   }

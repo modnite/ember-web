@@ -12,7 +12,7 @@ import { App } from './ui/App';
 
 {
   const p = usePrefs.getState();
-  void applyLook({ theme: p.theme, accent: p.accent, wallpaper: p.wallpaper, wallpaperDim: p.wallpaperDim });
+  void applyLook({ theme: p.theme, accent: p.accent, wallpaper: p.wallpaper, doodles: p.doodles, wallpaperDim: p.wallpaperDim });
 }
 installViewport();
 installCrashReporter();
