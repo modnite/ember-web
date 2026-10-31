@@ -19,7 +19,7 @@ Live at https://ember.cdsrv.com.
 | Link previews (not in encrypted chats) | Done |
 | Photos, files, captions, voice notes | Done |
 | Emoji: the Apple set Hearth uses, a picker with search, large single emoji | Done |
-| Stickers: favourites, made from any picture, animated emoji, Giphy | Done |
+| Stickers: favourites, made from any picture, Signal packs, animated emoji, Giphy | Done |
 | GIFs: favourites, Reactions, Wikimedia, Giphy, Imgur (own keys in Settings) | Done |
 | End-to-end encrypted chats | Done |
 | Groups: members, rename, leave | Done |
@@ -76,7 +76,7 @@ See [DEPLOY.md](DEPLOY.md).
 - [x] PWA, push, updates
 - [x] WebKit smoke tests
 - [x] Emoji, stickers, GIFs
-- [ ] Signal sticker packs (the Android app has them)
+- [x] Signal sticker packs
 - [ ] Check on a real iPhone
 - [ ] Check front camera flip on a Samsung browser
 - [ ] Check peer battery warnings with a second device

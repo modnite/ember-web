@@ -449,3 +449,14 @@ input[type='range'] { accent-color: var(--primary); }
 
 .call > .lobby { overflow-y: auto; min-height: 0; max-height: 100%; width: min(100%, 520px); }
 .lobby .preview { max-height: 38vh; }
+
+.mp-grid.signal-packs { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.sig-pack { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px; border-radius: 12px; font-size: 12px; text-align: center; min-width: 0; }
+.sig-pack:hover:not([disabled]) { background: var(--container-high); }
+.sig-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; }
+.sig-img { display: block; position: relative; width: 100%; aspect-ratio: 1; }
+.sig-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 4px; box-sizing: border-box; }
+.sig-head { display: flex; align-items: center; gap: 4px; padding: 4px 8px 0; flex: none; }
+.sig-name { display: flex; flex-direction: column; min-width: 0; }
+.sig-name small { color: var(--on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-grid.stickers .mp-tile .sig-img img { padding: 4px; }

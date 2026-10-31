@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+
+* Signal sticker packs in the Stickers tab: search the public directory by what a pack is about, open a pack, tap a sticker to send it. The pictures come straight from Signal's servers.
+
 ## 0.4.1
 
 * The doodle wallpaper has sixteen different shapes (stars, bolts, flowers, moons, notes, bubbles, leaves and more) in a wider repeat.

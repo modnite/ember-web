@@ -5,6 +5,7 @@ import { usePrefs } from '../lib/prefs';
 import { useStore } from '../lib/store';
 import { Emoji } from './EmojiText';
 import { Icon } from './kit';
+import { SignalPicker } from './SignalPicker';
 
 type Tab = 'emoji' | 'gif' | 'sticker';
 const TABS: [Tab, string][] = [['emoji', 'Emoji'], ['gif', 'GIFs'], ['sticker', 'Stickers']];
@@ -119,11 +120,14 @@ function MediaTab({ kind, onSend }: { kind: MediaKind; onSend: (file: File) => v
     <div className="mp-body">
       <div className="mp-sources" role="tablist" aria-label={kind === 'gif' ? 'GIF sources' : 'Sticker sources'}>
         <button type="button" role="tab" aria-selected={source === 'fav'} onClick={() => setSource('fav')}>Favourites</button>
+        {kind === 'sticker' ? <button type="button" role="tab" aria-selected={source === 'signal'} onClick={() => setSource('signal')}>Signal packs</button> : null}
         {sources.map((s) => <button key={s.id} type="button" role="tab" aria-selected={source === s.id} onClick={() => setSource(s.id)}>{s.label}</button>)}
       </div>
       {active ? <div className="mp-search"><Icon name="search" /><input type="search" inputMode="search" enterKeyHint="search" placeholder={`Search ${active.label}`} aria-label={`Search ${active.label}`} value={q} onChange={(e) => setQ(e.target.value)} /></div> : null}
 
-      {source === 'fav' ? (
+      {source === 'signal' ? (
+        <SignalPicker onSend={onSend} />
+      ) : source === 'fav' ? (
         <div className={`mp-grid ${kind}s`} aria-label={`Your ${kind === 'gif' ? 'GIFs' : 'stickers'}`}>
           <button type="button" className="mp-add" aria-label={kind === 'gif' ? 'Add a GIF' : 'Make a sticker from a picture'} onClick={() => pick.current?.click()}><Icon name="add" /></button>
           <input ref={pick} type="file" accept={kind === 'gif' ? 'image/gif' : 'image/*'} hidden onChange={(e) => { void add(e.target.files?.[0]); e.target.value = ''; }} />

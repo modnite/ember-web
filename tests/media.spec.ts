@@ -232,3 +232,25 @@ test('message interactions: click for actions, reply from the sheet, select seve
   await fwd.click();
   await expect(page.getByText('Forward to')).toBeVisible();
 });
+
+test('Signal sticker packs: search, open a pack, send a sticker', async ({ page }, info) => {
+  await openChat(page);
+  await toggle(page).click();
+  await panel(page).getByRole('tab', { name: 'Stickers' }).click();
+  await panel(page).getByRole('tab', { name: 'Signal packs' }).click();
+  await panel(page).getByRole('searchbox', { name: 'Search Signal packs' }).fill('scooby');
+  const pack = panel(page).locator('.sig-pack').first();
+  await expect(pack).toBeVisible({ timeout: 30_000 });
+  await expect(pack).toBeEnabled({ timeout: 30_000 });
+  await expect.poll(() => pack.locator('img').count(), { timeout: 30_000 }).toBeGreaterThan(0);
+  await page.screenshot({ path: `test-results/${info.project.name}-signal-packs.png` });
+  await pack.click();
+  await expect(panel(page).getByRole('button', { name: 'Back to the packs' })).toBeVisible();
+  const tile = panel(page).locator('.mp-grid.stickers .mp-tile').first();
+  await expect.poll(() => tile.locator('img').count(), { timeout: 30_000 }).toBeGreaterThan(0);
+  await page.screenshot({ path: `test-results/${info.project.name}-signal-pack.png` });
+  const before = await page.locator('img[alt^="sticker-signal-"]').count();
+  await tile.dispatchEvent('click');
+  await expect(page.locator('img[alt^="sticker-signal-"]')).toHaveCount(before + 1, { timeout: 30_000 });
+  await expect.poll(() => page.locator('img[alt^="sticker-signal-"]').last().evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+});
