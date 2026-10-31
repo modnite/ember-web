@@ -29,7 +29,7 @@ export async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body && !(init.body instanceof FormData) && !headers.has('content-type')) headers.set('content-type', 'application/json');
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers, credentials: 'same-origin' });
+    res = await fetch(path, { ...init, headers, credentials: 'include' });
   } catch (e) {
     throw new ApiError(0, friendly(e));
   }

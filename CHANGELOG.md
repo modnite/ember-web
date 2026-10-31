@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+
+* The Nudge button is in the top bar on every screen size, for everyone. Voice and video calls share one Call button that opens a small menu, as in the Android app, so the chat name has room.
+* Signing in from an installed iPhone app: the sign-in is checked again for a moment if the cookie is slow to arrive, and requests now send cookies the same way the Hearth web app does.
+
 ## 0.8.0
 
 * Spacing now matches the Android app: section headings, rows, icon gaps and the profile row use the same sizes in both.

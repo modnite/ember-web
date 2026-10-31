@@ -248,6 +248,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [info, setInfo] = useState(false);
   const [attach, setAttach] = useState(false);
+  const [callMenu, setCallMenu] = useState(false);
   const [panel, setPanel] = useState(false);
   const nudgeButton = usePrefs((s) => s.nudgeButton);
   const nudgedAt = useStore((s) => s.nudgeAt[roomId] ?? 0);
@@ -457,8 +458,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
           </span>
         </button>
         {nudgeButton ? <button type="button" className="icon-btn" style={{ color: 'var(--primary)' }} aria-label="Nudge" title="Nudge" onClick={() => store.sendNudge(roomId)}><Icon name="wave" /></button> : null}
-        <IconButton icon="phone" label="Voice call" onClick={() => void startCall(roomId, false)} />
-        <IconButton icon="video" label="Video call" onClick={() => void startCall(roomId, true)} />
+        <IconButton icon="phone" label="Call" onClick={() => setCallMenu(true)} />
         <IconButton icon="more" label="More" onClick={() => setInfo(true)} />
       </header>
 
@@ -544,6 +544,13 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
         <input ref={camera} type="file" accept="image/*,video/*" capture="environment" hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
         <input ref={docs} type="file" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
       </div>
+
+      {callMenu ? (
+        <Sheet onClose={() => setCallMenu(false)}>
+          <MenuItem icon="phone" label="Voice call" onClick={() => { setCallMenu(false); void startCall(roomId, false); }} />
+          <MenuItem icon="video" label="Video call" onClick={() => { setCallMenu(false); void startCall(roomId, true); }} />
+        </Sheet>
+      ) : null}
 
       {attach ? (
         <Sheet onClose={() => setAttach(false)}>

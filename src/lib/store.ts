@@ -679,14 +679,17 @@ export const useStore = create<State>((set, get) => {
    * Cookies", a private tab, an in-app browser), and "unauthorized" would be all the person ever saw. Say what to change instead.
    */
   async function keptSession(): Promise<void> {
-    try {
-      await api.me();
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 401) {
-        throw new ApiError(401, 'You signed in, but this browser did not keep the sign-in. Allow cookies for this site. On iPhone: Settings, Apps, Safari, turn off Block All Cookies, and use a normal tab, not a private one or the browser built into another app.');
+    // An installed iPhone app can take a moment to hand a new cookie to its network requests, so the first asks may not carry it yet.
+    for (const wait of [0, 400, 1200]) {
+      if (wait) await new Promise((r) => setTimeout(r, wait));
+      try {
+        await api.me();
+        return;
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 401)) throw e;
       }
-      throw e;
     }
+    throw new ApiError(401, 'You signed in, but this browser did not keep the sign-in. Allow cookies for this site. On iPhone: Settings, Apps, Safari, turn off Block All Cookies, and use a normal tab, not a private one or the browser built into another app.');
   }
 
   async function afterSignIn(): Promise<void> {

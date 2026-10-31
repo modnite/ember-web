@@ -38,7 +38,7 @@ export interface Prefs {
 }
 
 const KEY = 'ember.prefs';
-const DEFAULTS: Prefs = { theme: 'system', accent: '', wallpaper: 'default', doodles: true, wallpaperDim: 0, wallpaperPhoto: 0, enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, sendHd: false, nudgeButton: typeof window === 'undefined' || window.innerWidth >= 480, messageSound: 'ember', callSound: 'ember', micId: '', camId: '', speakerId: '', giphyKey: '', imgurId: '' };
+const DEFAULTS: Prefs = { theme: 'system', accent: '', wallpaper: 'default', doodles: true, wallpaperDim: 0, wallpaperPhoto: 0, enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, sendHd: false, nudgeButton: true, messageSound: 'ember', callSound: 'ember', micId: '', camId: '', speakerId: '', giphyKey: '', imgurId: '' };
 
 /** The first wallpaper choices (doodles, gradient, dots, plain) become a flat colour with the doodles switched on or off. */
 function migrate(saved: Record<string, unknown>): Record<string, unknown> {
@@ -49,9 +49,15 @@ function migrate(saved: Record<string, unknown>): Record<string, unknown> {
   return saved;
 }
 
+/** The Nudge button was left out of the top bar on narrow screens, and every browser kept that choice. It is on for everyone once; after that it is theirs. */
+function nudgeInBar(saved: Record<string, unknown>): Record<string, unknown> {
+  if (saved.nudgeInBarDone) return saved;
+  return { ...saved, nudgeButton: true, nudgeInBarDone: true };
+}
+
 function load(): Prefs {
   try {
-    return { ...DEFAULTS, ...(migrate(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, unknown>) as Partial<Prefs>) };
+    return { ...DEFAULTS, ...(nudgeInBar(migrate(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, unknown>)) as Partial<Prefs>) };
   } catch {
     return { ...DEFAULTS };
   }
