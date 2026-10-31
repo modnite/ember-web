@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+* The default wallpaper is a dense scatter in the way of the big messengers: 34 larger outline icons (camera, cup, headphones, umbrella, paw, gift and more) with small dots, rings and sparkles filling every gap. The same picture as in the Android app.
+
 ## 0.5.2
 
 * The default wallpaper is jumbled and full: shapes sit off any grid, at different sizes, turned every way, with no empty patches. It repeats only every 1100 pixels.

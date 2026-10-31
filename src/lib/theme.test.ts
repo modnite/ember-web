@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BLACK_VARS, DOODLE_KINDS, accentName, doodleUnit, accentVars, doodleTile, onColor, parseHex, wallpaperCss } from './theme';
+import { BIG_DOODLES, FILL_DOODLES } from './doodleShapes';
+import { BLACK_VARS, accentName, accentVars, bigDoodle, doodleTile, doodleUnit, fillDoodle, onColor, parseHex, wallpaperCss } from './theme';
 
 describe('colours', () => {
   it('reads hex colours the way a person types them', () => {
@@ -47,12 +48,41 @@ describe('wallpapers', () => {
   it('keeps the doodle tile in the accent colour', () => {
     expect(decodeURIComponent(doodleTile('#2f6fed', false))).toContain('stroke="#2f6fed"');
   });
-  it('scatters many different shapes, not a handful', () => {
+  it('has plenty of large icons and small fillers, written with only the commands both apps draw', () => {
+    expect(BIG_DOODLES.length).toBeGreaterThanOrEqual(30);
+    expect(FILL_DOODLES.length).toBeGreaterThanOrEqual(10);
+    for (const d of [...BIG_DOODLES, ...FILL_DOODLES]) expect(d).toMatch(/^[MLHVCQZ0-9. \-]+$/);
+  });
+  it('draws each shape once and uses it where it is placed', () => {
     const svg = decodeURIComponent(doodleTile('#e8590c', false));
-    expect(DOODLE_KINDS).toBe(16);
-    // circles, lines and paths come from the first shapes; ellipses (notes), rects (bubbles, rounded boxes) and groups from the later ones
-    for (const part of ['<circle', '<ellipse', '<rect', '<g ', '<path']) expect(svg).toContain(part);
-    expect(svg.length).toBeGreaterThan(20000);
+    expect(svg).toContain('<defs>');
+    expect((svg.match(/<use /g) ?? []).length).toBeGreaterThan(1000);
+    expect(svg).toContain('vector-effect="non-scaling-stroke"');
+  });
+  it('keeps the small shapes clear of the large icons, and fills the space between them', () => {
+    let placed = 0;
+    let skipped = 0;
+    for (let row = 0; row < 40; row++) {
+      for (let col = 0; col < 48; col++) {
+        const p = fillDoodle(row, col);
+        if (!p) { skipped++; continue; }
+        placed++;
+        const b = bigDoodle(Math.floor(p.y / 66), Math.floor(p.x / 66));
+        expect(Math.hypot(p.x - b.x, p.y - b.y)).toBeGreaterThan(b.r);
+      }
+    }
+    expect(placed).toBeGreaterThan(skipped);
+  });
+  it('never puts two large icons on top of each other', () => {
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 12; col++) {
+        const a = bigDoodle(row, col);
+        for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]] as const) {
+          const b = bigDoodle(row + dr, col + dc);
+          expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(a.r + b.r);
+        }
+      }
+    }
   });
   it('is jumbled but always the same: a fixed scatter, no two neighbours alike by position', () => {
     const again = decodeURIComponent(doodleTile('#e8590c', false));

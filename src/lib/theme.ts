@@ -1,6 +1,7 @@
 // How Ember looks: light, dark or black, an accent colour, and the chat wallpaper. The rules follow the Android app (ui/theme/Theme.kt and
 // ui/chat/Wallpaper.kt): a whole colour scheme grown from one accent, and Black as the dark scheme on pure black for OLED screens.
 
+import { BIG_DOODLES, FILL_DOODLES } from './doodleShapes';
 import { loadPhoto } from './wallpaper';
 
 export type ThemeMode = 'system' | 'light' | 'dark' | 'black';
@@ -113,47 +114,8 @@ export const BLACK_VARS: Record<string, string> = {
 
 const enc = (svg: string): string => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 
-/** How many different little shapes the wallpaper scatters (the same sixteen as the Android app). */
-export const DOODLE_KINDS = 16;
-
-/** One small outline, turned a little: the shapes the Android wallpaper scatters. */
-export function doodle(kind: number, x: number, y: number, r: number, turn: number): string {
-  const at = `transform="rotate(${turn} ${x} ${y})"`;
-  switch (kind) {
-    case 0: return `<circle cx="${x}" cy="${y}" r="${r}" ${at}/>`;
-    case 1: return `<path d="M${x - r} ${y}H${x + r}M${x} ${y - r}V${y + r}" ${at}/>`;
-    case 2: return `<path d="M${x} ${y - r}L${x + r} ${y + r * 0.8}L${x - r} ${y + r * 0.8}Z" ${at}/>`;
-    case 3: return `<path d="M${x - r * 1.2} ${y}Q${x - r * 0.6} ${y - r} ${x} ${y}Q${x + r * 0.6} ${y + r} ${x + r * 1.2} ${y}" ${at}/>`;
-    case 4: return `<path d="M${x} ${y - r}L${x + r} ${y}L${x} ${y + r}L${x - r} ${y}Z" ${at}/>`;
-    case 5: return `<path d="M${x} ${y + r * 0.9}C${x - r * 1.9} ${y - r * 0.2} ${x - r * 0.9} ${y - r * 1.5} ${x} ${y - r * 0.4}C${x + r * 0.9} ${y - r * 1.5} ${x + r * 1.9} ${y - r * 0.2} ${x} ${y + r * 0.9}Z" ${at}/>`;
-    case 6: return `<rect x="${x - r}" y="${y - r * 0.7}" width="${r * 2}" height="${r * 1.4}" rx="${r * 0.4}" ${at}/>`;
-    // A star.
-    case 7: {
-      const pts = Array.from({ length: 10 }, (_, i) => {
-        const a = ((-90 + i * 36) * Math.PI) / 180;
-        const rad = i % 2 === 0 ? r * 1.15 : r * 0.5;
-        return `${(x + rad * Math.cos(a)).toFixed(2)} ${(y + rad * Math.sin(a)).toFixed(2)}`;
-      });
-      return `<path d="M${pts.join('L')}Z" ${at}/>`;
-    }
-    // A lightning bolt: one open stroke, so nothing crosses itself.
-    case 8: return `<path d="M${x + r * 0.35} ${y - r * 1.2}L${x - r * 0.55} ${y + r * 0.15}L${x + r * 0.15} ${y + r * 0.15}L${x - r * 0.35} ${y + r * 1.2}" ${at}/>`;
-    // A four pointed sparkle.
-    case 9: return `<path d="M${x} ${y - r * 1.2}Q${x + r * 0.15} ${y - r * 0.15} ${x + r * 1.2} ${y}Q${x + r * 0.15} ${y + r * 0.15} ${x} ${y + r * 1.2}Q${x - r * 0.15} ${y + r * 0.15} ${x - r * 1.2} ${y}Q${x - r * 0.15} ${y - r * 0.15} ${x} ${y - r * 1.2}Z" ${at}/>`;
-    // A zigzag.
-    case 10: return `<path d="M${x - r * 1.3} ${y + r * 0.5}L${x - r * 0.65} ${y - r * 0.5}L${x} ${y + r * 0.5}L${x + r * 0.65} ${y - r * 0.5}L${x + r * 1.3} ${y + r * 0.5}" ${at}/>`;
-    // A music note.
-    case 11: return `<g ${at}><ellipse cx="${x - r * 0.4}" cy="${y + r * 0.8}" rx="${r * 0.55}" ry="${r * 0.4}"/><path d="M${x + r * 0.15} ${y + r * 0.8}V${y - r * 1.1}M${x + r * 0.15} ${y - r * 1.1}Q${x + r} ${y - r * 0.8} ${x + r * 0.9} ${y - r * 0.1}"/></g>`;
-    // A drop.
-    case 12: return `<path d="M${x} ${y - r * 1.2}C${x + r * 0.9} ${y - r * 0.1} ${x + r * 0.8} ${y + r} ${x} ${y + r}C${x - r * 0.8} ${y + r} ${x - r * 0.9} ${y - r * 0.1} ${x} ${y - r * 1.2}Z" ${at}/>`;
-    // A crescent moon.
-    case 13: return `<path d="M${x + r * 0.2} ${y - r * 1.1}C${x - r * 1.4} ${y - r * 1.1} ${x - r * 1.4} ${y + r * 1.1} ${x + r * 0.2} ${y + r * 1.1}C${x - r * 0.7} ${y + r * 0.7} ${x - r * 0.7} ${y - r * 0.7} ${x + r * 0.2} ${y - r * 1.1}Z" ${at}/>`;
-    // A speech bubble, tail included, in one outline.
-    case 14: return `<path d="M${x - r * 0.7} ${y - r * 0.8}H${x + r * 0.7}Q${x + r * 1.1} ${y - r * 0.8} ${x + r * 1.1} ${y - r * 0.4}V${y + r * 0.1}Q${x + r * 1.1} ${y + r * 0.5} ${x + r * 0.7} ${y + r * 0.5}H${x - r * 0.05}L${x - r * 0.7} ${y + r * 1.1}L${x - r * 0.55} ${y + r * 0.5}H${x - r * 0.7}Q${x - r * 1.1} ${y + r * 0.5} ${x - r * 1.1} ${y + r * 0.1}V${y - r * 0.4}Q${x - r * 1.1} ${y - r * 0.8} ${x - r * 0.7} ${y - r * 0.8}Z" ${at}/>`;
-    // A leaf with its vein (the vein stays inside the outline).
-    default: return `<g ${at}><path d="M${x - r * 1.1} ${y + r * 0.6}Q${x - r * 0.8} ${y - r * 1.1} ${x + r * 1.1} ${y - r * 0.7}Q${x + r * 0.8} ${y + r * 0.9} ${x - r * 1.1} ${y + r * 0.6}Z"/><path d="M${x - r * 0.7} ${y + r * 0.4}L${x + r * 0.45} ${y - r * 0.4}"/></g>`;
-  }
-}
+const BIG_CELL = 66;
+const FILL_CELL = 16.5;
 
 /** A number from 0 up to 1 that is always the same for the same row, column and purpose (the Android app computes the identical one). */
 export function doodleUnit(row: number, col: number, salt: number): number {
@@ -163,40 +125,85 @@ export function doodleUnit(row: number, col: number, salt: number): number {
   return ((h & 0x7fffffff) % 10000) / 10000;
 }
 
-/**
- * The doodles as a tile that repeats. Jumbled, not lined up, and full: every shape sits a little off its place, at its own size, turned any way,
- * some a little fainter, the way the big messengers scatter theirs. A shape that crosses the edge of the tile is drawn again on the far side,
- * so the tile joins up with itself.
- */
-export function doodleTile(accent: string, dark: boolean): string {
-  const cell = 40;
-  const cols = 28;
-  const rows = 22;
-  const w = cell * cols;
-  const h = Math.round(cell * 0.95 * rows);
-  const base = dark ? 0.26 : 0.22;
-  let shapes = '';
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const x = (row % 2 === 0 ? cell / 2 : cell) + col * cell + (doodleUnit(row, col, 2) - 0.5) * 0.4 * cell;
-      const y = cell / 2 + row * cell * 0.95 + (doodleUnit(row, col, 3) - 0.5) * 0.4 * cell;
-      const r = 8.5 * (0.8 + 0.3 * doodleUnit(row, col, 4));
-      const turn = doodleUnit(row, col, 5) * 360;
-      const kind = Math.min(DOODLE_KINDS - 1, Math.floor(doodleUnit(row, col, 6) * DOODLE_KINDS));
-      const opacity = (base * (0.8 + 0.2 * doodleUnit(row, col, 7))).toFixed(3);
-      let one = '';
-      for (const dx of [0, -w, w]) {
-        for (const dy of [0, -h, h]) {
-          const px = x + dx;
-          const py = y + dy;
-          if (px < -r * 2 || px > w + r * 2 || py < -r * 2 || py > h + r * 2) continue;
-          one += doodle(kind, px, py, r, turn);
-        }
-      }
-      shapes += `<g stroke-opacity="${opacity}">${one}</g>`;
+interface Placed {
+  x: number;
+  y: number;
+  r: number;
+  turn: number;
+  kind: number;
+  fade: number;
+}
+
+/** The large icon of a place: a little off its spot, a little different in size, tipped a little either way. */
+export function bigDoodle(row: number, col: number): Placed {
+  return {
+    x: (col + 0.5) * BIG_CELL + (doodleUnit(row, col, 2) - 0.5) * 0.36 * BIG_CELL,
+    y: (row + 0.5) * BIG_CELL + (doodleUnit(row, col, 3) - 0.5) * 0.36 * BIG_CELL,
+    r: 12 + 5 * doodleUnit(row, col, 4),
+    turn: (doodleUnit(row, col, 5) - 0.5) * 70,
+    kind: Math.min(BIG_DOODLES.length - 1, Math.floor(doodleUnit(row, col, 6) * BIG_DOODLES.length)),
+    fade: 0.8 + 0.2 * doodleUnit(row, col, 7),
+  };
+}
+
+/** The small shape of a place (most are dots), or null when a large icon is too close. `big` finds the large icon of a place, so a tile can wrap. */
+export function fillDoodle(row: number, col: number, big: (row: number, col: number) => Placed = bigDoodle): Placed | null {
+  const x = (col + 0.5) * FILL_CELL + (doodleUnit(row, col, 12) - 0.5) * 0.7 * FILL_CELL;
+  const y = (row + 0.5) * FILL_CELL + (doodleUnit(row, col, 13) - 0.5) * 0.7 * FILL_CELL;
+  const r = 2.5 + 3 * doodleUnit(row, col, 14);
+  const bigRow = Math.floor(y / BIG_CELL);
+  const bigCol = Math.floor(x / BIG_CELL);
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const b = big(bigRow + dr, bigCol + dc);
+      if (Math.hypot(x - b.x, y - b.y) < b.r * 1.3 + r + 2) return null;
     }
   }
-  return enc(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" stroke="${accent}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${shapes}</svg>`);
+  const pick = doodleUnit(row, col, 16);
+  const kind = pick < 0.4 ? 0 : 1 + Math.min(FILL_DOODLES.length - 2, Math.floor(doodleUnit(row, col, 17) * (FILL_DOODLES.length - 1)));
+  return { x, y, r, turn: doodleUnit(row, col, 15) * 360, kind, fade: 0.7 + 0.3 * doodleUnit(row, col, 18) };
+}
+
+const mod = (n: number, m: number): number => ((n % m) + m) % m;
+
+/**
+ * The doodles as a tile that repeats: larger outline icons with small dots, rings and sparkles filling every gap between them, the way the big
+ * messengers draw their backgrounds. Each shape is written once and used where it is placed. A shape that crosses the edge of the tile is drawn
+ * again on the far side, so the tile joins up with itself.
+ */
+export function doodleTile(accent: string, dark: boolean): string {
+  const bigCols = 12;
+  const bigRows = 10;
+  const w = BIG_CELL * bigCols;
+  const h = BIG_CELL * bigRows;
+  const base = dark ? 0.26 : 0.22;
+  // The large icon of any place, wrapped so the picture repeats exactly at the tile's edges.
+  const wrapped = (row: number, col: number): Placed => {
+    const rr = mod(row, bigRows);
+    const cc = mod(col, bigCols);
+    const b = bigDoodle(rr, cc);
+    return { ...b, x: b.x + ((col - cc) / bigCols) * w, y: b.y + ((row - rr) / bigRows) * h };
+  };
+  const defs = [...BIG_DOODLES.map((d, i) => `<path id="b${i}" d="${d}" vector-effect="non-scaling-stroke"/>`), ...FILL_DOODLES.map((d, i) => `<path id="f${i}" d="${d}" vector-effect="non-scaling-stroke"/>`)].join('');
+  let uses = '';
+  const put = (id: string, p: Placed, width: number): void => {
+    for (const dx of [0, -w, w]) {
+      for (const dy of [0, -h, h]) {
+        const x = p.x + dx;
+        const y = p.y + dy;
+        if (x < -p.r * 1.5 || x > w + p.r * 1.5 || y < -p.r * 1.5 || y > h + p.r * 1.5) continue;
+        uses += `<use href="#${id}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${p.turn.toFixed(0)}) scale(${p.r.toFixed(1)})" stroke-width="${width}" stroke-opacity="${(base * p.fade).toFixed(3)}"/>`;
+      }
+    }
+  };
+  for (let row = 0; row < bigRows; row++) for (let col = 0; col < bigCols; col++) put(`b${bigDoodle(row, col).kind}`, bigDoodle(row, col), 1.9);
+  for (let row = 0; row < h / FILL_CELL; row++) {
+    for (let col = 0; col < w / FILL_CELL; col++) {
+      const p = fillDoodle(row, col, wrapped);
+      if (p) put(`f${p.kind}`, p, 1.5);
+    }
+  }
+  return enc(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" stroke="${accent}" stroke-linecap="round" stroke-linejoin="round"><defs>${defs}</defs>${uses}</svg>`);
 }
 
 function dotsTile(accent: string, dark: boolean): string {
