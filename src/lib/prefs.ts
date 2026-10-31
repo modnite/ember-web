@@ -18,13 +18,24 @@ export interface Prefs {
   /** Flip the front camera before sending (for phones whose camera hands over an already flipped picture). Auto means: Samsung models. */
   flipFront: 'auto' | 'on' | 'off';
   crashReports: boolean;
+  /** Photos go out in HD (more detail, larger) instead of Standard. */
+  sendHd: boolean;
+  /** A Nudge button in the top bar of every chat. Off puts Nudge in the attach menu. */
+  nudgeButton: boolean;
+  /** The sound for a new message and for a ring: Ember's own, none, or a file you chose. */
+  messageSound: 'ember' | 'none' | 'file';
+  callSound: 'ember' | 'none' | 'file';
+  /** The devices chosen for calls (empty: the browser's own choice). */
+  micId: string;
+  camId: string;
+  speakerId: string;
   /** Your own keys for the GIF services that need one (kept in this browser only). */
   giphyKey: string;
   imgurId: string;
 }
 
 const KEY = 'ember.prefs';
-const DEFAULTS: Prefs = { theme: 'system', accent: '', wallpaper: 'doodle', wallpaperDim: 25, wallpaperPhoto: 0, enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, giphyKey: '', imgurId: '' };
+const DEFAULTS: Prefs = { theme: 'system', accent: '', wallpaper: 'doodle', wallpaperDim: 25, wallpaperPhoto: 0, enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, sendHd: false, nudgeButton: typeof window === 'undefined' || window.innerWidth >= 480, messageSound: 'ember', callSound: 'ember', micId: '', camId: '', speakerId: '', giphyKey: '', imgurId: '' };
 
 function load(): Prefs {
   try {

@@ -12,7 +12,10 @@ Live at https://ember.cdsrv.com.
 |---|---|
 | Sign in, two-step code, sign out | Done |
 | Chat list, search, archive | Done |
-| Messages: reply, edit, delete, forward, pin, reactions | Done |
+| Messages: reply, edit, delete, forward, pin, reactions, pick several, swipe to reply | Done |
+| Search chats and message text | Done |
+| Nudges | Done |
+| HD or Standard photos, choose sounds and ringtone, pick call devices | Done |
 | Link previews (not in encrypted chats) | Done |
 | Photos, files, captions, voice notes | Done |
 | Emoji: the Apple set Hearth uses, a picker with search, large single emoji | Done |

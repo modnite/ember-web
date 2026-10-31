@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+* Messages: a tap or click opens the actions. A long press picks several, with a bar for reply, copy, pin, edit, forward and delete. Swipe right to reply. Pictures and stickers have a forward button beside them.
+* Search finds message text as well as chat names, in chats the server can read and, on this device, in sealed chats. A result opens at the message.
+* Nudge button (in the attach menu on narrow screens), HD or Standard photo quality, and the six reactions you use most.
+* Choose the message sound and the ringtone, or use a file of your own.
+* Before a call: choose the microphone, camera and speaker, with a live microphone level.
+* More room between bubbles, bolder and closer doodles on the default wallpaper.
+
 ## 0.3.0
 
 * Appearance: Black theme for OLED screens, accent colours (nine presets or your own hex) and chat wallpapers (doodles, gradient, dots, plain or your own photo, with dimming), the same as the Android app.

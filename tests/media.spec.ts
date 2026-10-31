@@ -119,3 +119,116 @@ test('appearance: black theme, accent colour and wallpaper apply and stay', asyn
   // back to the defaults for the next test
   await page.evaluate(() => localStorage.removeItem('ember.prefs'));
 });
+
+test('photos go out as Standard (1600) or HD (up to 4096)', async ({ page }) => {
+  await openChat(page);
+  const widthOfLast = async (): Promise<number> => {
+    const img = page.locator('.bubble img[src*="/api/attachments/"]').last();
+    await expect(img).toBeVisible();
+    await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+    return img.evaluate((i: HTMLImageElement) => i.naturalWidth);
+  };
+  const send = async (): Promise<void> => {
+    await page.locator('input[type=file][accept="image/*,video/*"]').first().setInputFiles('tests/fixtures/big.jpg');
+    await page.getByRole('button', { name: 'Send' }).click();
+  };
+  await send();
+  await expect.poll(widthOfLast, { timeout: 30_000 }).toBe(1600);
+  await page.goto('/#/settings');
+  await page.getByText('Send photos in HD').click();
+  await page.getByRole('button', { name: /^Chats$/ }).click();
+  await page.getByRole('button', { name: /Weekend plans/ }).click();
+  await send();
+  await expect.poll(widthOfLast, { timeout: 30_000 }).toBe(3000);
+  await page.evaluate(() => localStorage.removeItem('ember.prefs'));
+});
+
+test('nudge: the button sends one, and a nudge from someone else shakes the chat and says so', async ({ page, request }) => {
+  await openChat(page);
+  // On a narrow screen the button lives in the attach menu so the title keeps its room.
+  if (!(await page.getByRole('button', { name: 'Nudge' }).first().isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Attach' }).click();
+    await page.getByRole('button', { name: 'Nudge' }).click();
+  } else {
+    await page.getByRole('button', { name: 'Nudge' }).click();
+  }
+  await expect(page.getByText('You sent a nudge')).toBeVisible();
+  // someone else nudges the same group (a second account on the scratch server)
+  const other = await request.post('/api/auth/login', { data: { username: process.env.EMBER_OTHER ?? 'maya', password: process.env.EMBER_PASS ?? 'password123' } });
+  test.skip(!other.ok(), 'no second account on this server');
+  const rooms = (await (await request.get('/api/rooms')).json()) as { rooms: Array<{ id: string; name: string }> };
+  const room = rooms.rooms.find((r) => r.name === 'Weekend plans')!;
+  const res = await request.post(`/api/rooms/${room.id}/nudge`);
+  expect(res.ok()).toBe(true);
+  await expect(page.getByText(/sent a nudge/).last()).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.chat')).toHaveClass(/shake/);
+});
+
+test('search: message text is found and opens at the message', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#u').fill(process.env.EMBER_USER ?? 'me');
+  await page.locator('#p').fill(process.env.EMBER_PASS ?? 'password123');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('button', { name: /New chat/ })).toBeVisible();
+  await page.getByRole('searchbox', { name: 'Search chats' }).fill('bakery');
+  const hit = page.getByRole('region', { name: 'Messages' }).getByRole('button').first();
+  await expect(hit).toContainText('bakery');
+  await hit.click();
+  await expect(page.locator('.bubble-row.flash')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.bubble-row.flash')).toContainText('bakery');
+});
+
+async function touch(page: Page, selector: string, steps: Array<{ type: 'pointerdown' | 'pointermove' | 'pointerup'; dx?: number; wait?: number }>): Promise<void> {
+  const box = await page.locator(selector).last().boundingBox();
+  const x = box!.x + 20;
+  const y = box!.y + box!.height / 2;
+  for (const s of steps) {
+    await page.locator(selector).last().evaluate((el, a) => {
+      el.dispatchEvent(new PointerEvent(a.type, { pointerType: 'touch', pointerId: 7, isPrimary: true, bubbles: true, cancelable: true, clientX: a.x + (a.dx ?? 0), clientY: a.y }));
+    }, { type: s.type, x, y, dx: s.dx });
+    if (s.wait) await page.waitForTimeout(s.wait);
+  }
+}
+
+test('message interactions: click for actions, reply from the sheet, select several, swipe to reply, quick forward', async ({ page }, info) => {
+  const tag = info.project.name;
+  await openChat(page);
+  const box = page.getByRole('textbox', { name: 'Message' });
+  await box.fill(`first test line ${tag}`);
+  await page.getByRole('button', { name: 'Send' }).click();
+  await box.fill(`second test line ${tag}`);
+  await page.getByRole('button', { name: 'Send' }).click();
+  const second = page.locator('.bubble', { hasText: `second test line ${tag}` }).last();
+  await expect(second).toBeVisible();
+
+  // A plain click opens what can be done with the message.
+  await second.locator('.text').click();
+  await expect(page.getByRole('button', { name: 'Reply' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'More reactions' })).toBeVisible();
+  await page.screenshot({ path: `test-results/${info.project.name}-message-menu.png` });
+  await page.getByRole('button', { name: 'Reply' }).click();
+  await expect(page.locator('.reply-bar')).toContainText(`second test line ${tag}`);
+  await page.getByRole('button', { name: 'Cancel reply' }).click();
+
+  // Long press picks it; a tap on another one adds it.
+  await touch(page, `.bubble:has-text("second test line ${tag}")`, [{ type: 'pointerdown', wait: 1000 }, { type: 'pointerup' }]);
+  await expect(page.getByRole('toolbar', { name: 'Selected messages' })).toContainText('1 selected');
+  await page.locator('.bubble', { hasText: `first test line ${tag}` }).last().locator('.text').click();
+  await expect(page.getByRole('toolbar', { name: 'Selected messages' })).toContainText('2 selected');
+  await page.screenshot({ path: `test-results/${info.project.name}-message-selected.png` });
+  await page.getByRole('button', { name: 'Copy' }).click();
+  await expect(page.getByRole('toolbar', { name: 'Selected messages' })).toHaveCount(0);
+
+  // Swipe to the right replies.
+  await touch(page, `.bubble:has-text("second test line ${tag}")`, [{ type: 'pointerdown' }, { type: 'pointermove', dx: 40 }, { type: 'pointermove', dx: 130 }, { type: 'pointerup', dx: 130 }]);
+  await expect(page.locator('.reply-bar')).toContainText(`second test line ${tag}`);
+  await page.getByRole('button', { name: 'Cancel reply' }).click();
+
+  // Pictures have a forward button beside them.
+  await page.locator('input[type=file][accept="image/*,video/*"]').first().setInputFiles('tests/fixtures/face.png');
+  await page.getByRole('button', { name: 'Send' }).click();
+  const fwd = page.getByRole('button', { name: 'Forward', exact: true }).last();
+  await expect(fwd).toBeVisible();
+  await fwd.click();
+  await expect(page.getByText('Forward to')).toBeVisible();
+});

@@ -7,6 +7,7 @@ import type { TwoStepStatus, User } from '../lib/types';
 import { isIOS, isStandalone } from '../lib/viewport';
 import { canInstall, promptInstall } from '../lib/install';
 import { AppearanceRows } from './Appearance';
+import { SoundRows } from './SoundSettings';
 import { Avatar, Icon, Sheet, Toggle, type IconName } from './kit';
 
 declare const __APP_VERSION__: string;
@@ -77,6 +78,7 @@ export function Settings() {
         <Group title="Notifications">
           <Toggle icon="bell" title="Message and call alerts" sub={PUSH_TEXT[push]} checked={push === 'on'} disabled={push !== 'on' && push !== 'off'} onChange={(v) => void togglePush(v)} />
           <Toggle icon="bell" title="Sounds" sub="Short sounds for new messages and calls" checked={prefs.sounds} onChange={(v) => set('sounds', v)} />
+          <SoundRows />
           {push === 'on' ? <Action icon="bell" title="Send a test notification" onClick={() => void api.pushTest().then((r) => showToast(r.sent ? 'Sent. It should arrive in a moment.' : r.error ?? 'Nothing was sent.')).catch((e: Error) => showToast(e.message))} /> : null}
           {ios && !installed ? <Action icon="info" title="Add Ember to your Home Screen" sub="Needed for notifications on iPhone and iPad" onClick={() => setDialog('ios')} /> : null}
           {canInstall() ? <Action icon="download" title="Install Ember" sub="Open it like an app, with its own window" onClick={() => void promptInstall()} /> : null}
@@ -87,6 +89,8 @@ export function Settings() {
         </Group>
 
         <Group title="Chats">
+          <Toggle icon="photo" title="Send photos in HD" sub="Sharper and larger. Off sends a smaller copy that arrives faster." checked={prefs.sendHd} onChange={(v) => set('sendHd', v)} />
+          <Toggle icon="chat" title="Nudge button" sub="In the top bar of every chat. Off puts Nudge in the attach menu." checked={prefs.nudgeButton} onChange={(v) => set('nudgeButton', v)} />
           <Toggle icon="send" title="Enter sends" sub="Off: Enter adds a new line. Ctrl or Cmd with Enter always sends." checked={prefs.enterSends} onChange={(v) => set('enterSends', v)} />
           <Toggle icon="edit" title="Check spelling" sub="Underline misspelt words in the message box" checked={prefs.spellcheck} onChange={(v) => set('spellcheck', v)} />
         </Group>

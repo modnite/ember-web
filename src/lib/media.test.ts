@@ -48,3 +48,22 @@ describe('online sources', () => {
     expect(parse.glyph('2764_fe0f')).toBe('❤️');
   });
 });
+
+import { at, snippet } from './search';
+
+describe('message search helpers', () => {
+  it('finds text in any case', () => {
+    expect(at('Nine works. There is a Bakery', 'bakery')).toBe(23);
+    expect(at('abc', 'x')).toBe(-1);
+  });
+  it('cuts a short piece around the match', () => {
+    const s = snippet('a'.repeat(120) + ' bakery ' + 'b'.repeat(120), 'bakery');
+    expect(s.match).toBe('bakery');
+    expect(s.before.startsWith('…')).toBe(true);
+    expect(s.after.endsWith('…')).toBe(true);
+    expect(s.before.length + s.match.length + s.after.length).toBeLessThan(100);
+  });
+  it('shows the start of the text when nothing matches', () => {
+    expect(snippet('hello there', 'zzz')).toEqual({ before: 'hello there', match: '', after: '' });
+  });
+});

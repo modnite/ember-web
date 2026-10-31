@@ -8,6 +8,7 @@ import { isIOS } from '../lib/viewport';
 import type { LinkPreview, Message, Room, User } from '../lib/types';
 import { Avatar, Confirm, Icon, IconButton, Sheet, type IconName } from './kit';
 import { addFav } from '../lib/favourites';
+import { quickReactions } from '../lib/emojiUse';
 import { isJumbo } from '../lib/emoji';
 import { Emoji, EmojiText } from './EmojiText';
 import { EmojiPicker, MediaPanel } from './MediaPanel';
@@ -15,7 +16,6 @@ import { AttachmentView, attachmentBlob, Viewer } from './media';
 import { Recorder } from './Recorder';
 import { RoomInfo } from './RoomInfo';
 
-const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
 
 function Linkified({ text }: { text: string }) {
@@ -58,6 +58,14 @@ interface BubbleProps {
   quoteText: string;
   status: 'sending' | 'failed' | 'sent' | 'read';
   onMenu: (m: Message) => void;
+  /** Start picking several messages with this one. */
+  onPick: (m: Message) => void;
+  /** Add or remove this message while several are picked. */
+  onToggle: (m: Message) => void;
+  onReply: (m: Message) => void;
+  onQuickForward: (m: Message) => void;
+  selected: boolean;
+  selecting: boolean;
   onOpenMedia: (url: string, name: string) => void;
   onJump: (id: string) => void;
   onRetry: (m: Message) => void;
@@ -65,11 +73,17 @@ interface BubbleProps {
   onReact: (m: Message, e: string) => void;
 }
 
-const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName, text, quoteText, status, onMenu, onOpenMedia, onJump, onRetry, onDiscard, onReact }: BubbleProps) {
+const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName, text, quoteText, status, onMenu, onPick, onToggle, onReply, onQuickForward, selected, selecting, onOpenMedia, onJump, onRetry, onDiscard, onReact }: BubbleProps) {
   const timer = useRef<number | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
+  const longFired = useRef(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const swipe = useRef<{ x: number; y: number; on: boolean; dx: number } | null>(null);
+  const suppressClick = useRef(false);
   const deleted = !!m.deletedAt;
   const sticker = m.attachments.length === 1 && isSticker(m.attachments[0]!) && !text.text;
+  // Pictures, videos and stickers have a round forward button beside them, on the side facing the middle of the screen.
+  const quick = !deleted && !selecting && m.attachments.length > 0 && m.attachments.every((a) => /^(image|video)\//.test(a.mime) || isSticker(a));
   const preview = usePreview(text.text, !room.encrypted && !deleted);
   const sender = m.user as User | undefined;
 
@@ -92,20 +106,77 @@ const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName
 
   return (
     <>
-      <div className={`bubble-row ${mine ? 'mine' : 'theirs'}${first ? ' gap' : ' tight'}`} data-id={m.id}>
+      <div
+        ref={rowRef}
+        className={`bubble-row ${mine ? 'mine' : 'theirs'}${first ? ' gap' : ' tight'}${selected ? ' selected' : ''}`}
+        data-id={m.id}
+        onPointerDown={(e) => {
+          if (e.pointerType === 'mouse' || deleted || selecting) return;
+          swipe.current = { x: e.clientX, y: e.clientY, on: false, dx: 0 };
+        }}
+        onPointerMove={(e) => {
+          const s = swipe.current;
+          const row = rowRef.current;
+          if (!s || !row) return;
+          const dx = e.clientX - s.x;
+          const dy = e.clientY - s.y;
+          if (!s.on) {
+            if (dx > 12 && dx > Math.abs(dy) * 1.5) { s.on = true; cancel(); row.setPointerCapture?.(e.pointerId); }
+            else if (Math.abs(dy) > 12) { swipe.current = null; return; }
+          }
+          if (s.on) {
+            s.dx = Math.min(140, Math.max(0, dx));
+            row.style.transition = 'none';
+            row.style.transform = `translateX(${s.dx}px)`;
+          }
+        }}
+        onPointerUp={() => {
+          const s = swipe.current;
+          swipe.current = null;
+          const row = rowRef.current;
+          if (!s?.on || !row) return;
+          row.style.transition = 'transform 0.2s';
+          row.style.transform = '';
+          suppressClick.current = true;
+          window.setTimeout(() => { suppressClick.current = false; }, 60);
+          if (s.dx > 90) { if (navigator.vibrate) navigator.vibrate(12); onReply(m); }
+        }}
+        onPointerCancel={() => {
+          swipe.current = null;
+          const row = rowRef.current;
+          if (row) { row.style.transition = 'transform 0.2s'; row.style.transform = ''; }
+        }}
+      >
         {!mine && room.kind === 'group' ? (last ? <Avatar user={sender} name={sender?.displayName ?? '?'} size={30} /> : <span style={{ width: 30, flex: 'none' }} />) : null}
+        {mine && quick ? <button type="button" className="quick-fwd" aria-label="Forward" title="Forward" onClick={() => onQuickForward(m)}><Icon name="forward" /></button> : null}
         <div
-          className={`bubble noselect${deleted ? ' deleted' : ''}${sticker ? ' sticker' : ''}${m.attachments.length && !deleted ? ' has-media' : ''}${status === 'sending' ? ' pending' : ''}${status === 'failed' ? ' failed' : ''}`}
+          className={`bubble${deleted ? ' deleted' : ''}${sticker ? ' sticker' : ''}${m.attachments.length && !deleted ? ' has-media' : ''}${status === 'sending' ? ' pending' : ''}${status === 'failed' ? ' failed' : ''}`}
           role="group"
           aria-label={`${mine ? 'You' : sender?.displayName ?? 'Someone'}, ${clock(m.createdAt)}`}
           tabIndex={0}
           onContextMenu={(e) => { e.preventDefault(); onMenu(m); }}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'ContextMenu') { e.preventDefault(); onMenu(m); } }}
+          onClickCapture={(e) => {
+            // While several are picked, a tap anywhere on a message (a picture too) adds or removes it.
+            if (!selecting || deleted) return;
+            e.stopPropagation();
+            e.preventDefault();
+            onToggle(m);
+          }}
+          onClick={(e) => {
+            if (deleted || suppressClick.current) return;
+            if (longFired.current) { longFired.current = false; return; }
+            // Links, pictures, the voice player and the quote keep their own taps; selecting text with the mouse is not a tap either.
+            if ((e.target as HTMLElement).closest('a, button, audio, video, input, textarea, select, .audio, .quote')) return;
+            if (window.getSelection()?.toString()) return;
+            onMenu(m);
+          }}
           onPointerDown={(e) => {
             if (e.pointerType === 'mouse' || deleted) return;
             start.current = { x: e.clientX, y: e.clientY };
             cancel();
-            timer.current = window.setTimeout(() => { timer.current = null; if (navigator.vibrate) navigator.vibrate(12); onMenu(m); }, 420);
+            longFired.current = false;
+            timer.current = window.setTimeout(() => { timer.current = null; longFired.current = true; if (navigator.vibrate) navigator.vibrate(12); onPick(m); }, 420);
           }}
           onPointerMove={(e) => { if (start.current && Math.hypot(e.clientX - start.current.x, e.clientY - start.current.y) > 8) cancel(); }}
           onPointerUp={cancel}
@@ -135,6 +206,7 @@ const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName
           </span>
           <div style={{ clear: 'both' }} />
         </div>
+        {!mine && quick ? <button type="button" className="quick-fwd" aria-label="Forward" title="Forward" onClick={() => onQuickForward(m)}><Icon name="forward" /></button> : null}
       </div>
       {counts.length > 0 && !deleted ? (
         <div className={`reactions${mine ? ' mine' : ''}`} style={{ marginLeft: !mine && room.kind === 'group' ? 48 : undefined }}>
@@ -163,12 +235,29 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const lastCount = useRef(0);
   const [below, setBelow] = useState(false);
   const [menu, setMenu] = useState<Message | null>(null);
-  const [fwd, setFwd] = useState<Message | null>(null);
-  const [del, setDel] = useState<Message | null>(null);
+  const [fwd, setFwd] = useState<Message[] | null>(null);
+  const [del, setDel] = useState<Message[] | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+  useEffect(() => { setPicked([]); }, [roomId]);
+  useEffect(() => {
+    if (!picked.length) return;
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') setPicked([]); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [picked.length]);
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [info, setInfo] = useState(false);
   const [attach, setAttach] = useState(false);
   const [panel, setPanel] = useState(false);
+  const nudgeButton = usePrefs((s) => s.nudgeButton);
+  const nudgedAt = useStore((s) => s.nudgeAt[roomId] ?? 0);
+  const [shaking, setShaking] = useState(false);
+  useEffect(() => {
+    if (!nudgedAt || Date.now() - nudgedAt > 1500) return;
+    setShaking(true);
+    const t = window.setTimeout(() => setShaking(false), 800);
+    return () => window.clearTimeout(t);
+  }, [nudgedAt]);
   const [moreReact, setMoreReact] = useState<Message | null>(null);
   const [draft, setDraft] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -237,7 +326,27 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const jump = useCallback((id: string) => {
     const el = scroller.current?.querySelector(`[data-id="${CSS.escape(id)}"]`);
     el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // The message lights up for a moment so the eye finds it.
+    el?.classList.add('flash');
+    window.setTimeout(() => el?.classList.remove('flash'), 1800);
   }, []);
+  const pendingJump = useStore((s) => s.pendingJump);
+  const jumpList = useStore((s) => s.messages[roomId]);
+  const jumpHistory = useStore((s) => s.history[roomId]);
+  useEffect(() => {
+    if (!pendingJump || pendingJump.roomId !== roomId || !jumpList) return;
+    if (jumpList.some((m) => m.id === pendingJump.id)) {
+      stick.current = false;
+      const id = pendingJump.id;
+      useStore.getState().setJump(null);
+      window.setTimeout(() => jump(id), 120);
+    } else if (jumpHistory === 'more') {
+      void useStore.getState().loadOlder(roomId);
+    } else if (jumpHistory === 'done') {
+      useStore.getState().setJump(null);
+      useStore.getState().showToast('That message is too far back to show here.');
+    }
+  }, [pendingJump, jumpList, jumpHistory, roomId, jump]);
 
   const meId = me!.id;
   const peer = room ? roomPeer(room, meId) : undefined;
@@ -323,8 +432,22 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const savable = !!menu && !menu.deletedAt && menu.attachments.some((x) => isSticker(x) || /gif/i.test(x.mime) || /\.gif$/i.test(x.filename));
 
   return (
-    <div className="chat" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
-      <header className="chat-header">
+    <div className={`chat${shaking ? ' shake' : ''}`} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
+      {picked.length > 0 ? (
+        <SelectionBar
+          messages={picked.map((id) => (list ?? []).find((x) => x.id === id)).filter((x): x is Message => !!x)}
+          meId={meId}
+          copyable={(x) => decrypted(x).text}
+          onClose={() => setPicked([])}
+          onReply={(x) => { store.setReply(roomId, x); setPicked([]); input.current?.focus(); }}
+          onCopy={(text) => { void navigator.clipboard?.writeText(text).then(() => store.showToast('Copied')).catch(() => undefined); setPicked([]); }}
+          onForward={(xs) => setFwd(xs)}
+          onDelete={(xs) => setDel(xs)}
+          onPin={(x) => { void store.pin(x); setPicked([]); }}
+          onEdit={(x) => { store.setEditing(x); setDraft(decrypted(x).text); setPicked([]); window.setTimeout(() => { const el = input.current; if (el) { el.focus(); grow(el); } }, 50); }}
+        />
+      ) : null}
+      <header className={`chat-header${picked.length > 0 ? ' behind' : ''}`}>
         {!wide ? <IconButton icon="back" label="Back to chats" onClick={onBack} /> : null}
         <button type="button" className="who" onClick={() => setInfo(true)} aria-label={`${title}, details`}>
           <Avatar user={peer} name={title} src={room.kind === 'group' ? room.avatar : undefined} color={room.kind === 'group' ? '#6b8e23' : undefined} size={40} dot />
@@ -333,6 +456,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
             <span className={`sub${typers.length ? ' typing' : ''}`} aria-live="polite">{sub}</span>
           </span>
         </button>
+        {nudgeButton ? <button type="button" className="icon-btn" aria-label="Nudge" title="Nudge" onClick={() => store.sendNudge(roomId)}><Emoji emoji="👋" size={26} /></button> : null}
         <IconButton icon="phone" label="Voice call" onClick={() => void startCall(roomId, false)} />
         <IconButton icon="video" label="Video call" onClick={() => void startCall(roomId, true)} />
         <IconButton icon="more" label="More" onClick={() => setInfo(true)} />
@@ -356,6 +480,8 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
           <div key={m.id}>
             {newDay ? <div className="day"><span>{dayLabel(m.createdAt)}</span></div> : null}
             <Bubble m={m} room={room} meId={meId} mine={m.userId === meId} first={first} last={last} showName={room.kind === 'group' && first} text={decrypted(m)} quoteText={quoteText} status={status}
+              selected={picked.includes(m.id)} selecting={picked.length > 0} onPick={(x) => setPicked((p) => (p.includes(x.id) ? p : [...p, x.id]))} onToggle={(x) => setPicked((p) => (p.includes(x.id) ? p.filter((i) => i !== x.id) : [...p, x.id]))}
+              onReply={(x) => { store.setReply(roomId, x); input.current?.focus(); }} onQuickForward={(x) => setFwd([x])}
               onMenu={setMenu} onOpenMedia={(url, name) => setViewer({ url, name })} onJump={jump} onRetry={(x) => void store.retry(roomId, x.id)} onDiscard={(x) => store.discard(roomId, x.id)} onReact={(x, e) => void store.react(x, e)} />
           </div>
         ))}
@@ -424,21 +550,22 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
           <MenuItem icon="photo" label="Photo or video" onClick={() => { setAttach(false); picker.current?.click(); }} />
           <MenuItem icon="camera" label={isIOS() ? 'Take a photo' : 'Camera'} onClick={() => { setAttach(false); camera.current?.click(); }} />
           <MenuItem icon="file" label="File" onClick={() => { setAttach(false); docs.current?.click(); }} />
+          {!nudgeButton ? <MenuItem icon="chat" label="Nudge" onClick={() => { setAttach(false); store.sendNudge(roomId); }} /> : null}
         </Sheet>
       ) : null}
 
       {menu ? (
         <Sheet onClose={() => setMenu(null)}>
           {!menu.deletedAt ? (
-            <div className="react-bar">{QUICK.map((e) => <button key={e} type="button" aria-label={`React ${e}`} onClick={() => { void store.react(menu, e); setMenu(null); }}><Emoji emoji={e} size={30} /></button>)}<button type="button" aria-label="More reactions" onClick={() => { setMoreReact(menu); setMenu(null); }}><Icon name="add" /></button></div>
+            <div className="react-bar">{quickReactions().map((e) => <button key={e} type="button" aria-label={`React ${e}`} onClick={() => { void store.react(menu, e); setMenu(null); }}><Emoji emoji={e} size={30} /></button>)}<button type="button" aria-label="More reactions" onClick={() => { setMoreReact(menu); setMenu(null); }}><Icon name="add" /></button></div>
           ) : null}
           {!menu.deletedAt ? <MenuItem icon="reply" label="Reply" onClick={() => { store.setReply(roomId, menu); setMenu(null); input.current?.focus(); }} /> : null}
           {!menu.deletedAt && decrypted(menu).text ? <MenuItem icon="copy" label="Copy" onClick={() => { void navigator.clipboard?.writeText(decrypted(menu).text).then(() => store.showToast('Copied')).catch(() => undefined); setMenu(null); }} /> : null}
           {savable ? <MenuItem icon="photo" label="Save to favourites" onClick={() => { void saveFavourite(menu); setMenu(null); }} /> : null}
-          {!menu.deletedAt ? <MenuItem icon="forward" label="Forward" onClick={() => { setFwd(menu); setMenu(null); }} /> : null}
+          {!menu.deletedAt ? <MenuItem icon="forward" label="Forward" onClick={() => { setFwd([menu]); setMenu(null); }} /> : null}
           {!menu.deletedAt ? <MenuItem icon="pin" label="Pin or unpin" onClick={() => { void store.pin(menu); setMenu(null); }} /> : null}
           {mineMsg && !menu.deletedAt && !menu.attachments.length ? <MenuItem icon="edit" label="Edit" onClick={() => { store.setEditing(menu); setDraft(decrypted(menu).text); setMenu(null); window.setTimeout(() => { const el = input.current; if (el) { el.focus(); grow(el); } }, 50); }} /> : null}
-          {mineMsg && !menu.deletedAt ? <MenuItem icon="trash" label="Delete" danger onClick={() => { setDel(menu); setMenu(null); }} /> : null}
+          {mineMsg && !menu.deletedAt ? <MenuItem icon="trash" label="Delete" danger onClick={() => { setDel([menu]); setMenu(null); }} /> : null}
         </Sheet>
       ) : null}
       {moreReact ? (
@@ -446,8 +573,8 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
           <div className="react-more"><EmojiPicker onPick={(e) => { void store.react(moreReact, e); setMoreReact(null); }} /></div>
         </Sheet>
       ) : null}
-      {fwd ? <ForwardTo message={fwd} onClose={() => setFwd(null)} /> : null}
-      {del ? <Confirm title="Delete this message?" text="It disappears for everyone in the chat." yes="Delete" danger onYes={() => void store.remove(del)} onClose={() => setDel(null)} /> : null}
+      {fwd ? <ForwardTo messages={fwd} onClose={() => { setFwd(null); setPicked([]); }} /> : null}
+      {del ? <Confirm title={del.length > 1 ? `Delete ${del.length} messages?` : 'Delete this message?'} text="They disappear for everyone in the chat." yes="Delete" danger onYes={() => { for (const d of del) void store.remove(d); setPicked([]); }} onClose={() => setDel(null)} /> : null}
       {viewer ? <Viewer url={viewer.url} name={viewer.name} onClose={() => setViewer(null)} /> : null}
       {info ? <RoomInfo room={room} onClose={() => setInfo(false)} onLeft={onClose} /> : null}
     </div>
@@ -458,12 +585,35 @@ function MenuItem({ icon, label, onClick, danger }: { icon: IconName; label: str
   return <button type="button" className={`menu-item${danger ? ' danger' : ''}`} onClick={onClick}><Icon name={icon} />{label}</button>;
 }
 
-function ForwardTo({ message, onClose }: { message: Message; onClose: () => void }) {
+/** The bar that replaces the chat's title while messages are picked: what can be done with them. */
+function SelectionBar({ messages, meId, copyable, onClose, onReply, onCopy, onForward, onDelete, onPin, onEdit }: {
+  messages: Message[]; meId: string; copyable: (m: Message) => string;
+  onClose: () => void; onReply: (m: Message) => void; onCopy: (text: string) => void; onForward: (ms: Message[]) => void; onDelete: (ms: Message[]) => void; onPin: (m: Message) => void; onEdit: (m: Message) => void;
+}) {
+  const one = messages.length === 1 ? messages[0]! : null;
+  const live = messages.filter((m) => !m.deletedAt);
+  const text = live.map(copyable).filter(Boolean).join('\n');
+  const allMine = messages.length > 0 && messages.every((m) => m.userId === meId);
+  return (
+    <div className="select-bar" role="toolbar" aria-label="Selected messages">
+      <IconButton icon="close" label="Cancel selection" onClick={onClose} />
+      <b className="grow" aria-live="polite">{messages.length} selected</b>
+      {one && !one.deletedAt ? <IconButton icon="reply" label="Reply" onClick={() => onReply(one)} /> : null}
+      {text ? <IconButton icon="copy" label="Copy" onClick={() => onCopy(text)} /> : null}
+      {one && !one.deletedAt ? <IconButton icon="pin" label="Pin or unpin" onClick={() => onPin(one)} /> : null}
+      {one && one.userId === meId && !one.deletedAt && !one.attachments.length ? <IconButton icon="edit" label="Edit" onClick={() => onEdit(one)} /> : null}
+      {live.length > 0 ? <IconButton icon="forward" label="Forward" onClick={() => onForward(live)} /> : null}
+      {allMine && live.length > 0 ? <IconButton icon="trash" label="Delete" onClick={() => onDelete(live)} /> : null}
+    </div>
+  );
+}
+
+function ForwardTo({ messages, onClose }: { messages: Message[]; onClose: () => void }) {
   const { rooms, me, forward } = useStore();
   return (
     <Sheet title="Forward to" onClose={onClose}>
       {rooms.filter((r) => !r.archived).map((r) => (
-        <button key={r.id} type="button" className="check-row" onClick={() => { void forward(message, r.id); onClose(); }}>
+        <button key={r.id} type="button" className="check-row" onClick={() => { void (async () => { for (const m of messages) await forward(m, r.id); })(); onClose(); }}>
           <Avatar user={roomPeer(r, me!.id)} name={roomTitle(r, me!.id)} src={r.avatar} size={40} />
           <span>{roomTitle(r, me!.id)}</span>
         </button>

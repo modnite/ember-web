@@ -8,6 +8,7 @@ import { mediaKeyFromGroup } from './crypto';
 import { installFrontFlip } from './frontCameraFlip';
 import { realtime } from './realtime';
 import { playSound } from './sounds';
+import { usePrefs } from './prefs';
 import { useStore } from './store';
 
 export interface CallPerson {
@@ -176,8 +177,9 @@ export async function connectCall(): Promise<void> {
       dynacast: true,
       // The browser's own echo cancelling and noise suppression, as in the Hearth web client.
       audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      videoCaptureDefaults: { facingMode: s.facing },
+      videoCaptureDefaults: usePrefs.getState().camId ? { deviceId: usePrefs.getState().camId } : { facingMode: s.facing },
     };
+    if (usePrefs.getState().micId) options.audioCaptureDefaults = { ...options.audioCaptureDefaults, deviceId: usePrefs.getState().micId };
     let provider: ExternalE2EEKeyProvider | undefined;
     if (info?.encrypted) {
       const key = store.e2ee.key;
@@ -218,8 +220,10 @@ export async function connectCall(): Promise<void> {
     set({ phase: 'connected', startedAt: Date.now() });
     await Promise.allSettled([
       s.micOn ? r.localParticipant.setMicrophoneEnabled(true) : Promise.resolve(),
-      s.camOn ? r.localParticipant.setCameraEnabled(true, { facingMode: s.facing }) : Promise.resolve(),
+      s.camOn ? r.localParticipant.setCameraEnabled(true, usePrefs.getState().camId ? { deviceId: usePrefs.getState().camId } : { facingMode: s.facing }) : Promise.resolve(),
     ]);
+    const speaker = usePrefs.getState().speakerId;
+    if (speaker) await r.switchActiveDevice('audiooutput', speaker).catch(() => undefined);
     const devices = await Room.getLocalDevices('videoinput').catch(() => []);
     set({ canFlip: devices.length > 1 });
     refresh();

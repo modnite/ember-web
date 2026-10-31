@@ -7,6 +7,7 @@ import { usePrefs } from '../lib/prefs';
 import { ringUntilStopped } from '../lib/sounds';
 import { useStore } from '../lib/store';
 import { Avatar, Icon, type IconName } from './kit';
+import { LobbyDevices } from './LobbyDevices';
 
 function CallButton({ icon, label, onClick, pressed, className = '' }: { icon: IconName; label: string; onClick: () => void; pressed?: boolean; className?: string }) {
   return <button type="button" className={`call-btn ${className}`} aria-label={label} title={label} aria-pressed={pressed} onClick={onClick}><Icon name={icon} /></button>;
@@ -132,6 +133,7 @@ function Mini({ title, people, elapsed: time }: { title: string; people: CallPer
 function Lobby({ title }: { title: string }) {
   const c = useCall();
   const mirrorSelf = usePrefs((s) => s.mirrorSelf);
+  const camId = usePrefs((s) => s.camId);
   const ref = useRef<HTMLVideoElement>(null);
   const [err, setErr] = useState('');
   useEffect(() => {
@@ -139,13 +141,13 @@ function Lobby({ title }: { title: string }) {
     let dead = false;
     const el = ref.current;
     if (!c.camOn) { if (el) el.srcObject = null; return; }
-    void navigator.mediaDevices.getUserMedia({ video: { facingMode: c.facing }, audio: false }).then((s) => {
+    void navigator.mediaDevices.getUserMedia({ video: camId ? { deviceId: { exact: camId } } : { facingMode: c.facing }, audio: false }).then((s) => {
       if (dead) { s.getTracks().forEach((t) => t.stop()); return; }
       stream = s;
       if (el) el.srcObject = s;
     }).catch((e: Error) => setErr(e.name === 'NotAllowedError' ? 'Allow the camera to be seen in the call.' : 'No camera could be started.'));
     return () => { dead = true; stream?.getTracks().forEach((t) => t.stop()); if (el) el.srcObject = null; };
-  }, [c.camOn, c.facing]);
+  }, [c.camOn, c.facing, camId]);
   return (
     <div className="call" role="dialog" aria-modal="true" aria-label="Before you join">
       <div className="call-top"><div className="grow"><b>{title}</b><small>Check how you look and sound before you join</small></div></div>
@@ -155,6 +157,7 @@ function Lobby({ title }: { title: string }) {
         </div>
         {err ? <p className="error-text" role="alert">{err}</p> : null}
         <div className="side" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <LobbyDevices micOn={c.micOn} camOn={c.camOn} />
           <div className="call-actions" style={{ padding: 0 }}>
             <CallButton icon={c.micOn ? 'mic' : 'micOff'} label={c.micOn ? 'Mute' : 'Unmute'} pressed={!c.micOn} onClick={() => setLobby({ micOn: !c.micOn })} />
             <CallButton icon={c.camOn ? 'video' : 'videoOff'} label={c.camOn ? 'Camera off' : 'Camera on'} pressed={!c.camOn} onClick={() => setLobby({ camOn: !c.camOn })} />

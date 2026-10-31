@@ -129,12 +129,12 @@ function doodle(kind: number, x: number, y: number, r: number, turn: number): st
 
 /** The doodles as a tile that repeats: scattered shapes in the accent colour, the way the big messengers draw their backgrounds. */
 export function doodleTile(accent: string, dark: boolean): string {
-  const cell = 54;
+  const cell = 42;
   const cols = 8;
   const rows = 9;
   const w = cell * cols;
   const h = Math.round(cell * 0.9 * rows);
-  const ink = `stroke="${accent}" stroke-opacity="${dark ? 0.2 : 0.17}"`;
+  const ink = `stroke="${accent}" stroke-opacity="${dark ? 0.26 : 0.22}"`;
   let shapes = '';
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
@@ -142,12 +142,12 @@ export function doodleTile(accent: string, dark: boolean): string {
       const y = cell / 2 + row * cell * 0.9;
       const kind = (row * 3 + col * 5 + Math.floor(row / 2)) % 7;
       const turn = ((row * 37 + col * 53) % 90) - 45;
-      shapes += doodle(kind, x, y, 7.5, turn);
+      shapes += doodle(kind, x, y, 8.5, turn);
       // A shape on the right edge continues on the left of the next tile.
-      if (x >= w) shapes += doodle(kind, x - w, y, 7.5, turn);
+      if (x >= w) shapes += doodle(kind, x - w, y, 8.5, turn);
     }
   }
-  return enc(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" ${ink} stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${shapes}</svg>`);
+  return enc(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" ${ink} stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${shapes}</svg>`);
 }
 
 function dotsTile(accent: string, dark: boolean): string {

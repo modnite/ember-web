@@ -86,6 +86,7 @@ a { color: var(--primary); }
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .noselect { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+@media (pointer: coarse) { .bubble { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } }
 .scroll { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: thin; }
 
 /* ------------------------------------------------------------------ shell */
@@ -165,10 +166,10 @@ a { color: var(--primary); }
 .day { text-align: center; margin: 10px 0 6px; }
 .day span, .event { display: inline-block; background: var(--container-high); color: var(--on-surface-variant); font-size: 12.5px; padding: 3px 12px; border-radius: 12px; }
 .event { display: block; width: fit-content; margin: 8px auto; }
-.bubble-row { display: flex; padding: 1px 12px; gap: 6px; align-items: flex-end; }
+.bubble-row { display: flex; padding: 1.5px 12px; gap: 6px; align-items: flex-end; }
 .bubble-row.mine { justify-content: flex-end; }
-.bubble-row.tight { padding-top: 0; }
-.bubble-row.gap { margin-top: 8px; }
+.bubble-row.tight { padding-top: 1.5px; }
+.bubble-row.gap { margin-top: 12px; }
 .bubble-row .avatar { margin-bottom: 2px; }
 .bubble { max-width: min(78%, 560px); background: var(--bubble-theirs); color: var(--on-bubble-theirs); border-radius: 16px; padding: 6px 10px 5px; position: relative; box-shadow: 0 1px 1px rgba(32, 26, 23, 0.1); overflow-wrap: anywhere; min-width: 0; -webkit-touch-callout: none; }
 .mine .bubble { background: var(--bubble-mine); color: var(--on-bubble-mine); border-bottom-right-radius: 5px; }
@@ -419,3 +420,32 @@ svg:not([width]):not([class]) { width: 1.25em; height: 1.25em; fill: currentColo
 .wall-preview { width: 100%; aspect-ratio: 3 / 4; border-radius: 12px; border: 1px solid var(--outline-variant); background-color: var(--chat-bg); background-position: center; }
 .wall.on .wall-preview { outline: 3px solid var(--primary); outline-offset: 2px; }
 input[type='range'] { accent-color: var(--primary); }
+
+@keyframes nudge-shake { 0%, 100% { transform: translateX(0); } 12% { transform: translateX(-9px); } 25% { transform: translateX(8px); } 38% { transform: translateX(-7px); } 50% { transform: translateX(6px); } 63% { transform: translateX(-4px); } 78% { transform: translateX(3px); } }
+.chat.shake { animation: nudge-shake 0.7s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .chat.shake { animation: none; } }
+
+.row.hit mark { background: var(--primary-container); color: var(--on-primary-container); border-radius: 3px; padding: 0 1px; }
+.bubble-row.flash .bubble { outline: 3px solid var(--primary); outline-offset: 2px; transition: outline-color 0.4s; }
+
+.lobby-devices { display: flex; flex-direction: column; gap: 10px; }
+.lobby-select { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: rgba(255, 255, 255, 0.8); }
+.lobby-select select { min-height: 44px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.1); color: #fff; padding: 0 10px; font-size: 16px; }
+.lobby-select select option { color: #201a17; }
+.meter { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.meter .fill { height: 100%; width: 0; background: var(--online); border-radius: 4px; transition: width 0.08s linear; }
+
+.bubble-row { touch-action: pan-y; }
+.bubble { cursor: pointer; }
+.bubble.deleted { cursor: default; }
+.bubble-row.selected { background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.quick-fwd { flex: none; align-self: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(0, 0, 0, 0.32); color: #fff; display: grid; place-items: center; margin: 0 4px; }
+.quick-fwd svg { width: 18px; height: 18px; fill: currentColor; }
+.chat-header.behind { display: none; }
+.select-bar { display: flex; align-items: center; gap: 2px; min-height: 60px; padding: var(--safe-top) calc(var(--safe-right) + 4px) 0 calc(var(--safe-left) + 4px); background: var(--primary-container); color: var(--on-primary-container); flex: none; }
+.select-bar .icon-btn { color: inherit; }
+.select-bar .icon-btn:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.select-bar b { padding: 0 8px; }
+
+.call > .lobby { overflow-y: auto; min-height: 0; max-height: 100%; width: min(100%, 520px); }
+.lobby .preview { max-height: 38vh; }

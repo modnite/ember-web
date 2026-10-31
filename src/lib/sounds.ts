@@ -1,4 +1,5 @@
 import { usePrefs } from './prefs';
+import { loadSound, type SoundSlot } from './soundFiles';
 
 /**
  * Small synthesized sounds (no files to download). iOS and other browsers only let a page make sound after a tap, so the audio context is
@@ -41,10 +42,48 @@ function tone(c: AudioContext, freq: number, start: number, length: number, gain
   osc.stop(start + length + 0.02);
 }
 
-export type SoundKind = 'message' | 'send' | 'ring' | 'end';
+export type SoundKind = 'message' | 'send' | 'ring' | 'end' | 'nudge';
+
+/** Play the sound file chosen for a slot. Resolves false when it could not be played (the built-in sound is used instead). */
+async function playFile(slot: SoundSlot, loop = false): Promise<HTMLAudioElement | null> {
+  const f = await loadSound(slot);
+  if (!f) return null;
+  const a = new Audio(f.url);
+  a.loop = loop;
+  try {
+    await a.play();
+    return a;
+  } catch {
+    return null;
+  }
+}
+
+const slotOf = (kind: SoundKind): SoundSlot | null => (kind === 'message' ? 'message' : kind === 'ring' ? 'call' : null);
+
+/** Try a sound the way it will be heard: the chosen file, none, or Ember's own. */
+export function previewSound(slot: SoundSlot): void {
+  const choice = usePrefs.getState()[slot === 'message' ? 'messageSound' : 'callSound'];
+  if (choice === 'none') return;
+  if (choice === 'file') void playFile(slot).then((a) => { if (!a) playBuiltIn(slot === 'message' ? 'message' : 'ring'); });
+  else playBuiltIn(slot === 'message' ? 'message' : 'ring');
+}
 
 export function playSound(kind: SoundKind): void {
-  if (!usePrefs.getState().sounds) return;
+  const prefs = usePrefs.getState();
+  if (!prefs.sounds) return;
+  const slot = slotOf(kind);
+  if (slot) {
+    const choice = slot === 'message' ? prefs.messageSound : prefs.callSound;
+    if (choice === 'none') return;
+    if (choice === 'file') {
+      void playFile(slot).then((a) => { if (!a) playBuiltIn(kind); });
+      return;
+    }
+  }
+  playBuiltIn(kind);
+}
+
+function playBuiltIn(kind: SoundKind): void {
   const c = context();
   if (!c || c.state !== 'running') return;
   const t = c.currentTime;
@@ -53,6 +92,8 @@ export function playSound(kind: SoundKind): void {
     tone(c, 1175, t + 0.09, 0.2, 0.1);
   } else if (kind === 'send') {
     tone(c, 660, t, 0.09, 0.05);
+  } else if (kind === 'nudge') {
+    for (let i = 0; i < 4; i++) tone(c, 180 + (i % 2) * 40, t + i * 0.09, 0.08, 0.16);
   } else if (kind === 'end') {
     tone(c, 520, t, 0.14, 0.09);
     tone(c, 390, t + 0.12, 0.2, 0.09);
@@ -66,6 +107,18 @@ export function playSound(kind: SoundKind): void {
 
 /** A ring that repeats until stopped. Returns the stop function. */
 export function ringUntilStopped(): () => void {
+  const prefs = usePrefs.getState();
+  if (!prefs.sounds || prefs.callSound === 'none') return () => undefined;
+  if (prefs.callSound === 'file') {
+    let stop = false;
+    let audio: HTMLAudioElement | null = null;
+    void playFile('call', true).then((a) => {
+      audio = a;
+      if (stop) a?.pause();
+      if (!a && !stop) playBuiltIn('ring');
+    });
+    return () => { stop = true; audio?.pause(); };
+  }
   playSound('ring');
   const id = window.setInterval(() => playSound('ring'), 2600);
   return () => window.clearInterval(id);

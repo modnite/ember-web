@@ -6,6 +6,8 @@ import { ensureGroupKey, forgetDevice, loadOrCreateDevice, type GroupState } fro
 import { lastActivity } from './format';
 import { realtime, type Frame } from './realtime';
 import { playSound } from './sounds';
+import { noteReaction } from './emojiUse';
+import { preparePhoto } from './photo';
 import { usePrefs } from './prefs';
 import type { ActiveCall, AuthConfig, Contacts, IncomingRing, Message, Room, ServerInfo, User } from './types';
 
@@ -38,6 +40,8 @@ interface State {
   pending: Record<string, PendingMessage>;
   typing: Record<string, Record<string, number>>;
   events: Record<string, { id: string; text: string; at: number }[]>;
+  /** When the last nudge arrived in each room, so the open chat can shake. */
+  nudgeAt: Record<string, number>;
   activeCalls: Record<string, ActiveCall>;
   ring: IncomingRing | null;
   activeRoomId: string | null;
@@ -57,6 +61,10 @@ interface State {
   loadContacts: () => Promise<void>;
   openRoom: (id: string | null) => Promise<void>;
   loadOlder: (roomId: string) => Promise<void>;
+  sendNudge: (roomId: string) => void;
+  /** A message to scroll to once its chat is open (from a search result). */
+  pendingJump: { roomId: string; id: string } | null;
+  setJump: (j: { roomId: string; id: string } | null) => void;
   openDm: (userId: string) => Promise<string>;
   createGroup: (name: string, memberIds: string[], encrypted: boolean) => Promise<string>;
   renameRoom: (id: string, name: string) => Promise<void>;
@@ -91,6 +99,7 @@ interface State {
 }
 
 let toastId = 0;
+let lastNudge = 0;
 let tmpCounter = 0;
 const TYPING_MS = 5000;
 const lastTypingSent: Record<string, number> = {};
@@ -234,6 +243,16 @@ export const useStore = create<State>((set, get) => {
         set((st) => ({ events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: String(f.text ?? ''), at: Date.now() }].slice(-30) } }));
         break;
       }
+      case 'nudge': {
+        const roomId = String(f.roomId);
+        const userId = String(f.userId);
+        if (userId === s.me?.id) break;
+        const name = get().users[userId]?.displayName ?? 'Someone';
+        set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: Date.now() }, events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: `${name} sent a nudge`, at: Date.now() }].slice(-30) } }));
+        playSound('nudge');
+        navigator.vibrate?.([120, 60, 120, 60, 200]);
+        break;
+      }
       case 'contacts.changed':
         void s.loadContacts();
         break;
@@ -333,6 +352,9 @@ export const useStore = create<State>((set, get) => {
     pending: {},
     typing: {},
     events: {},
+    nudgeAt: {},
+    pendingJump: null,
+    setJump: (pendingJump) => set({ pendingJump }),
     activeCalls: {},
     ring: null,
     activeRoomId: null,
@@ -499,8 +521,9 @@ export const useStore = create<State>((set, get) => {
     async sendFiles(roomId, files, caption = '') {
       const room = get().rooms.find((r) => r.id === roomId);
       let first = true;
-      for (const file of files) {
+      for (const original of files) {
         try {
+          const file = await preparePhoto(original, usePrefs.getState().sendHd ? 'hd' : 'standard');
           const body = first ? caption : '';
           let payload: { blob: Blob; filename: string; encrypted?: boolean; envelope?: string } = { blob: file, filename: file.name || 'file' };
           if (room?.encrypted) {
@@ -521,6 +544,14 @@ export const useStore = create<State>((set, get) => {
         }
         first = false;
       }
+    },
+
+    sendNudge(roomId) {
+      const now = Date.now();
+      if (now - lastNudge < 3000) return;
+      lastNudge = now;
+      realtime.send({ t: 'nudge', roomId });
+      set((st) => ({ events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: 'You sent a nudge', at: now }].slice(-30) } }));
     },
 
     async retry(roomId, tmpId) {
@@ -557,6 +588,7 @@ export const useStore = create<State>((set, get) => {
     },
 
     async react(message, emoji) {
+      noteReaction(emoji);
       try {
         const { message: m } = await api.react(message.id, emoji);
         set((st) => ({ messages: { ...st.messages, [m.roomId]: upsertMessage(st.messages[m.roomId] ?? [], m) } }));

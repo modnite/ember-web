@@ -1,8 +1,9 @@
 import { EmojiText } from './EmojiText';
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
+import { searchMessages, snippet, type Hit } from '../lib/search';
 import { listTime, messagePreview, roomPeer, roomTitle } from '../lib/format';
 import { useStore } from '../lib/store';
-import type { Room } from '../lib/types';
+import type { Message, Room } from '../lib/types';
 import { Avatar, Icon, IconButton } from './kit';
 import { NewChat } from './NewChat';
 
@@ -39,6 +40,22 @@ export function ChatList({ activeId, onOpen }: { activeId: string | null; onOpen
   const [q, setQ] = useState('');
   const [archived, setArchived] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [hits, setHits] = useState<Hit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const loaded = useStore((s) => s.messages);
+  const setJump = useStore((s) => s.setJump);
+  useEffect(() => {
+    const needle = q.trim();
+    if (needle.length < 2) { setHits([]); setSearching(false); return; }
+    let dead = false;
+    setSearching(true);
+    const t = window.setTimeout(() => {
+      const readable = (m: Message): string | null => { const d = useStore.getState().text(m); return d.locked || d.failed ? null : d.text; };
+      void searchMessages(needle, rooms, loaded, readable).then((r) => { if (!dead) { setHits(r); setSearching(false); } });
+    }, 300);
+    return () => { dead = true; window.clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
   const { shown, archivedRooms } = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -76,8 +93,27 @@ export function ChatList({ activeId, onOpen }: { activeId: string | null; onOpen
               {archivedUnread > 0 ? <span className="badge" style={{ background: 'var(--outline)' }}>{archivedUnread}</span> : null}
             </button>
           ) : null}
-          {list.length === 0 && !(archivedRooms.length && !archived) ? (
-            <div className="empty">{q ? 'No chats match that.' : archived ? 'Nothing archived.' : 'No chats yet. Start one with the button below.'}</div>
+          {list.length === 0 && !(archivedRooms.length && !archived) && !(q.trim().length >= 2 && (hits.length > 0 || searching)) ? (
+            <div className="empty">{q ? 'No chats or messages match that.' : archived ? 'Nothing archived.' : 'No chats yet. Start one with the button below.'}</div>
+          ) : null}
+          {!archived && q.trim().length >= 2 && (hits.length > 0 || searching) ? (
+            <section aria-label="Messages">
+              <div className="group-title">Messages{searching && hits.length === 0 ? '…' : ''}</div>
+              {hits.map((h) => {
+                const s = snippet(h.text, q.trim());
+                const room = rooms.find((r) => r.id === h.room.id);
+                const title = room ? roomTitle(room, me.id) : h.room.name || 'Chat';
+                const who = h.message.userId === me.id ? 'You' : (h.message.user?.displayName ?? room?.members.find((u) => u.id === h.message.userId)?.displayName ?? 'Someone');
+                return (
+                  <button key={h.message.id} type="button" className="row hit" onClick={() => { setJump({ roomId: h.room.id, id: h.message.id }); onOpen(h.room.id); }}>
+                    <span className="main">
+                      <span className="line1"><span className="name">{title}</span><span className="time">{listTime(h.message.createdAt)}</span></span>
+                      <span className="line2"><span className="preview">{who}: {s.before}<mark>{s.match}</mark>{s.after}</span></span>
+                    </span>
+                  </button>
+                );
+              })}
+            </section>
           ) : null}
         </div>
         <button type="button" className="fab" aria-label="New chat" onClick={() => setCreating(true)}><Icon name="add" /></button>
