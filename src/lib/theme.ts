@@ -113,7 +113,10 @@ export const BLACK_VARS: Record<string, string> = {
 
 const enc = (svg: string): string => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 
-/** One small outline, turned a little: the seven shapes the Android wallpaper scatters. */
+/** How many different little shapes the wallpaper scatters (the same sixteen as the Android app). */
+export const DOODLE_KINDS = 16;
+
+/** One small outline, turned a little: the shapes the Android wallpaper scatters. */
 function doodle(kind: number, x: number, y: number, r: number, turn: number): string {
   const at = `transform="rotate(${turn} ${x} ${y})"`;
   switch (kind) {
@@ -123,14 +126,39 @@ function doodle(kind: number, x: number, y: number, r: number, turn: number): st
     case 3: return `<path d="M${x - r * 1.2} ${y}Q${x - r * 0.6} ${y - r} ${x} ${y}Q${x + r * 0.6} ${y + r} ${x + r * 1.2} ${y}" ${at}/>`;
     case 4: return `<path d="M${x} ${y - r}L${x + r} ${y}L${x} ${y + r}L${x - r} ${y}Z" ${at}/>`;
     case 5: return `<path d="M${x} ${y + r * 0.9}C${x - r * 1.9} ${y - r * 0.2} ${x - r * 0.9} ${y - r * 1.5} ${x} ${y - r * 0.4}C${x + r * 0.9} ${y - r * 1.5} ${x + r * 1.9} ${y - r * 0.2} ${x} ${y + r * 0.9}Z" ${at}/>`;
-    default: return `<rect x="${x - r}" y="${y - r * 0.7}" width="${r * 2}" height="${r * 1.4}" rx="${r * 0.4}" ${at}/>`;
+    case 6: return `<rect x="${x - r}" y="${y - r * 0.7}" width="${r * 2}" height="${r * 1.4}" rx="${r * 0.4}" ${at}/>`;
+    // A star.
+    case 7: {
+      const pts = Array.from({ length: 10 }, (_, i) => {
+        const a = ((-90 + i * 36) * Math.PI) / 180;
+        const rad = i % 2 === 0 ? r * 1.15 : r * 0.5;
+        return `${(x + rad * Math.cos(a)).toFixed(2)} ${(y + rad * Math.sin(a)).toFixed(2)}`;
+      });
+      return `<path d="M${pts.join('L')}Z" ${at}/>`;
+    }
+    // A lightning bolt.
+    case 8: return `<path d="M${x + r * 0.3} ${y - r * 1.2}L${x - r * 0.7} ${y + r * 0.1}L${x - r * 0.05} ${y + r * 0.1}L${x - r * 0.3} ${y + r * 1.2}L${x + r * 0.7} ${y - r * 0.2}L${x + r * 0.05} ${y - r * 0.2}Z" ${at}/>`;
+    // An asterisk.
+    case 9: return `<path d="${[0, 60, 120].map((deg) => { const a = (deg * Math.PI) / 180; const dx = r * 1.1 * Math.cos(a); const dy = r * 1.1 * Math.sin(a); return `M${(x - dx).toFixed(2)} ${(y - dy).toFixed(2)}L${(x + dx).toFixed(2)} ${(y + dy).toFixed(2)}`; }).join('')}" ${at}/>`;
+    // A zigzag.
+    case 10: return `<path d="M${x - r * 1.3} ${y + r * 0.5}L${x - r * 0.65} ${y - r * 0.5}L${x} ${y + r * 0.5}L${x + r * 0.65} ${y - r * 0.5}L${x + r * 1.3} ${y + r * 0.5}" ${at}/>`;
+    // A music note.
+    case 11: return `<g ${at}><ellipse cx="${x - r * 0.4}" cy="${y + r * 0.8}" rx="${r * 0.55}" ry="${r * 0.4}"/><path d="M${x + r * 0.15} ${y + r * 0.8}V${y - r * 1.1}M${x + r * 0.15} ${y - r * 1.1}Q${x + r} ${y - r * 0.8} ${x + r * 0.9} ${y - r * 0.1}"/></g>`;
+    // A flower: four petals round a small centre.
+    case 12: return `<g ${at}><circle cx="${x + r * 0.55}" cy="${y}" r="${r * 0.5}"/><circle cx="${x - r * 0.55}" cy="${y}" r="${r * 0.5}"/><circle cx="${x}" cy="${y + r * 0.55}" r="${r * 0.5}"/><circle cx="${x}" cy="${y - r * 0.55}" r="${r * 0.5}"/><circle cx="${x}" cy="${y}" r="${r * 0.2}"/></g>`;
+    // A crescent moon.
+    case 13: return `<path d="M${x + r * 0.2} ${y - r * 1.1}C${x - r * 1.4} ${y - r * 1.1} ${x - r * 1.4} ${y + r * 1.1} ${x + r * 0.2} ${y + r * 1.1}C${x - r * 0.7} ${y + r * 0.7} ${x - r * 0.7} ${y - r * 0.7} ${x + r * 0.2} ${y - r * 1.1}Z" ${at}/>`;
+    // A speech bubble.
+    case 14: return `<g ${at}><rect x="${x - r * 1.1}" y="${y - r * 0.8}" width="${r * 2.2}" height="${r * 1.3}" rx="${r * 0.4}"/><path d="M${x - r * 0.5} ${y + r * 0.5}L${x - r * 0.7} ${y + r * 1.1}L${x - r * 0.05} ${y + r * 0.5}"/></g>`;
+    // A leaf with its vein.
+    default: return `<g ${at}><path d="M${x - r * 1.1} ${y + r * 0.6}Q${x - r * 0.8} ${y - r * 1.1} ${x + r * 1.1} ${y - r * 0.7}Q${x + r * 0.8} ${y + r * 0.9} ${x - r * 1.1} ${y + r * 0.6}Z"/><path d="M${x - r} ${y + r * 0.6}L${x + r * 0.5} ${y - r * 0.4}"/></g>`;
   }
 }
 
 /** The doodles as a tile that repeats: scattered shapes in the accent colour, the way the big messengers draw their backgrounds. */
 export function doodleTile(accent: string, dark: boolean): string {
   const cell = 42;
-  const cols = 8;
+  const cols = 16;
   const rows = 9;
   const w = cell * cols;
   const h = Math.round(cell * 0.9 * rows);
@@ -140,7 +168,7 @@ export function doodleTile(accent: string, dark: boolean): string {
     for (let col = 0; col < cols; col++) {
       const x = (row % 2 === 0 ? cell / 2 : cell) + col * cell;
       const y = cell / 2 + row * cell * 0.9;
-      const kind = (row * 3 + col * 5 + Math.floor(row / 2)) % 7;
+      const kind = (row * 7 + col * 5 + Math.floor(row / 2) * 3) % DOODLE_KINDS;
       const turn = ((row * 37 + col * 53) % 90) - 45;
       shapes += doodle(kind, x, y, 8.5, turn);
       // A shape on the right edge continues on the left of the next tile.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLACK_VARS, accentName, accentVars, doodleTile, onColor, parseHex, wallpaperCss } from './theme';
+import { BLACK_VARS, DOODLE_KINDS, accentName, accentVars, doodleTile, onColor, parseHex, wallpaperCss } from './theme';
 
 describe('colours', () => {
   it('reads hex colours the way a person types them', () => {
@@ -46,6 +46,13 @@ describe('wallpapers', () => {
   });
   it('keeps the doodle tile in the accent colour', () => {
     expect(decodeURIComponent(doodleTile('#2f6fed', false))).toContain('stroke="#2f6fed"');
+  });
+  it('scatters many different shapes, not a handful', () => {
+    const svg = decodeURIComponent(doodleTile('#e8590c', false));
+    expect(DOODLE_KINDS).toBe(16);
+    // circles, lines and paths come from the first shapes; ellipses (notes), rects (bubbles, rounded boxes) and groups from the later ones
+    for (const part of ['<circle', '<ellipse', '<rect', '<g ', '<path']) expect(svg).toContain(part);
+    expect(svg.length).toBeGreaterThan(20000);
   });
   it('darkens a photo by the chosen amount, at most 70 percent, and falls back to doodles with no photo', () => {
     expect(wallpaperCss('photo', '#e8590c', false, 'blob:x', 25).image).toContain('rgba(0,0,0,0.25)');

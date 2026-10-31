@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+* The doodle wallpaper has sixteen different shapes (stars, bolts, flowers, moons, notes, bubbles, leaves and more) in a wider repeat.
+
 ## 0.4.0
 
 * Messages: a tap or click opens the actions. A long press picks several, with a bar for reply, copy, pin, edit, forward and delete. Swipe right to reply. Pictures and stickers have a forward button beside them.
