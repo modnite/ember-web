@@ -26,7 +26,7 @@ Live at https://ember.cdsrv.com.
 | Self mirror (default on) and front camera flip for others | Done |
 | Push notifications | Done, installed app only on iOS |
 | Crash reports to the Hearth server | Done |
-| Light, dark, system theme | Done |
+| Light, dark, black and system theme, accent colours, chat wallpapers | Done |
 | Update prompt | Done |
 
 ## Layout

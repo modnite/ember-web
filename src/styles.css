@@ -161,8 +161,7 @@ a { color: var(--primary); }
 .chat-header .who .title { font-weight: 600; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .chat-header .who .sub { font-size: 12.5px; color: var(--on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .chat-header .who .sub.typing { color: var(--primary); }
-.messages { flex: 1; min-height: 0; position: relative; background-color: var(--chat-bg); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23e8590c' stroke-width='1.6' stroke-opacity='.11'%3E%3Ccircle cx='24' cy='26' r='7'/%3E%3Cpath d='M70 26l8-8 8 8-8 8z'/%3E%3Cpath d='M120 20c8 0 14 6 14 12s-6 12-14 12-14-6-14-12 6-12 14-12z' transform='translate(-2 2)'/%3E%3Cpath d='M20 86l12 0M26 80l0 12'/%3E%3Crect x='64' y='78' width='18' height='14' rx='3'/%3E%3Cpath d='M118 82q6-8 12 0t12 0'/%3E%3Cpath d='M26 128l8-10 8 10z'/%3E%3Ccircle cx='84' cy='130' r='6'/%3E%3Cpath d='M122 122l12 12M134 122l-12 12'/%3E%3C/svg%3E"); padding: 8px 0; padding-left: var(--safe-left); padding-right: var(--safe-right); }
-:root[data-theme='dark'] .messages { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23ff8a55' stroke-width='1.6' stroke-opacity='.09'%3E%3Ccircle cx='24' cy='26' r='7'/%3E%3Cpath d='M70 26l8-8 8 8-8 8z'/%3E%3Cpath d='M120 20c8 0 14 6 14 12s-6 12-14 12-14-6-14-12 6-12 14-12z' transform='translate(-2 2)'/%3E%3Cpath d='M20 86l12 0M26 80l0 12'/%3E%3Crect x='64' y='78' width='18' height='14' rx='3'/%3E%3Cpath d='M118 82q6-8 12 0t12 0'/%3E%3Cpath d='M26 128l8-10 8 10z'/%3E%3Ccircle cx='84' cy='130' r='6'/%3E%3Cpath d='M122 122l12 12M134 122l-12 12'/%3E%3C/svg%3E"); }
+.messages { flex: 1; min-height: 0; position: relative; background-color: var(--chat-bg); background-image: var(--wall-image, none); background-size: var(--wall-size, auto); padding: 8px 0; padding-left: var(--safe-left); padding-right: var(--safe-right); }
 .day { text-align: center; margin: 10px 0 6px; }
 .day span, .event { display: inline-block; background: var(--container-high); color: var(--on-surface-variant); font-size: 12.5px; padding: 3px 12px; border-radius: 12px; }
 .event { display: block; width: fit-content; margin: 8px auto; }
@@ -403,3 +402,20 @@ svg:not([width]):not([class]) { width: 1.25em; height: 1.25em; fill: currentColo
 .mp-x svg { width: 16px; height: 16px; fill: currentColor; }
 .mp-note { padding: 18px 16px; color: var(--on-surface-variant); text-align: center; grid-column: 1 / -1; }
 .mp-note .link { color: var(--primary); text-decoration: underline; }
+
+.radio { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--outline); display: inline-block; flex: none; position: relative; }
+.radio.on { border-color: var(--primary); }
+.radio.on::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 12px 8px; padding: 4px 0 8px; }
+.swatch { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; padding: 4px 0; border-radius: 12px; }
+.swatch .dot, .hex-row .dot { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--outline-variant); }
+.swatch.on .dot { outline: 3px solid var(--on-bg); outline-offset: 2px; }
+.swatch .dot svg { width: 24px; height: 24px; fill: currentColor; }
+.hex-row { display: flex; align-items: center; gap: 10px; }
+.hex-row .dot.small { width: 32px; height: 32px; flex: none; }
+.hex-row .key-input { flex: 1; min-width: 0; }
+.walls { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 12px 10px; padding: 4px 0; }
+.wall { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; }
+.wall-preview { width: 100%; aspect-ratio: 3 / 4; border-radius: 12px; border: 1px solid var(--outline-variant); background-color: var(--chat-bg); background-position: center; }
+.wall.on .wall-preview { outline: 3px solid var(--primary); outline-offset: 2px; }
+input[type='range'] { accent-color: var(--primary); }

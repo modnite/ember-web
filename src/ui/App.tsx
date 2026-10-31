@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
-import { applyTheme, usePrefs } from '../lib/prefs';
+import { usePrefs } from '../lib/prefs';
+import { applyLook } from '../lib/theme';
 import { onUpdateReady, reloadForUpdate } from '../lib/update';
 import { CallScreen, RingCard } from './Call';
 import { ChatList } from './ChatList';
@@ -40,19 +41,23 @@ export function App() {
   const rooms = useStore((s) => s.rooms);
   const requests = useStore((s) => s.contacts.incoming.length);
   const theme = usePrefs((s) => s.theme);
+  const accent = usePrefs((s) => s.accent);
+  const wallpaper = usePrefs((s) => s.wallpaper);
+  const wallpaperDim = usePrefs((s) => s.wallpaperDim);
+  const wallpaperPhoto = usePrefs((s) => s.wallpaperPhoto);
   const wide = useWide();
   const [last, setLast] = useState<Tab>('chats');
   const [hash, setHash] = useState(location.hash);
   const [update, setUpdate] = useState(false);
 
-  useEffect(() => { applyTheme(theme); }, [theme]);
+  useEffect(() => { void applyLook({ theme, accent, wallpaper, wallpaperDim }); }, [theme, accent, wallpaper, wallpaperDim, wallpaperPhoto]);
   useEffect(() => {
     if (theme !== 'system') return;
     const q = window.matchMedia('(prefers-color-scheme: dark)');
-    const on = (): void => applyTheme('system');
+    const on = (): void => { void applyLook({ theme, accent, wallpaper, wallpaperDim }); };
     q.addEventListener('change', on);
     return () => q.removeEventListener('change', on);
-  }, [theme]);
+  }, [theme, accent, wallpaper, wallpaperDim]);
   useEffect(() => { void useStore.getState().init(); onUpdateReady(() => setUpdate(true)); }, []);
   useEffect(() => {
     const on = (): void => setHash(location.hash);

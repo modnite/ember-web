@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+* Appearance: Black theme for OLED screens, accent colours (nine presets or your own hex) and chat wallpapers (doodles, gradient, dots, plain or your own photo, with dimming), the same as the Android app.
+* The GIF and sticker panel says so when the pictures of a service are blocked, and offers to try again.
+
 ## 0.2.0
 
 * Emoji are the Apple pictures Hearth uses, in messages, reactions and the picker. Single emoji show large.

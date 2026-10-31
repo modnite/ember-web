@@ -6,6 +6,7 @@ import { useStore } from '../lib/store';
 import type { TwoStepStatus, User } from '../lib/types';
 import { isIOS, isStandalone } from '../lib/viewport';
 import { canInstall, promptInstall } from '../lib/install';
+import { AppearanceRows } from './Appearance';
 import { Avatar, Icon, Sheet, Toggle, type IconName } from './kit';
 
 declare const __APP_VERSION__: string;
@@ -82,7 +83,7 @@ export function Settings() {
         </Group>
 
         <Group title="Appearance">
-          <div className="setting"><Icon name="palette" className="ico" /><span className="main">Theme</span><Seg label="Theme" value={prefs.theme} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} onChange={(v) => set('theme', v)} /></div>
+          <AppearanceRows />
         </Group>
 
         <Group title="Chats">

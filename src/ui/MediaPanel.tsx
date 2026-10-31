@@ -63,6 +63,8 @@ function MediaTab({ kind, onSend }: { kind: MediaKind; onSend: (file: File) => v
   const [favs, setFavs] = useState<Fav[]>([]);
   const [busy, setBusy] = useState(false);
   const [broken, setBroken] = useState<Set<string>>(new Set());
+  const [again, setAgain] = useState(0);
+  const [loaded, setLoaded] = useState(0);
   const pick = useRef<HTMLInputElement>(null);
   const favKind: FavKind = kind;
   const active: OnlineSource | undefined = sources.find((s) => s.id === source);
@@ -78,11 +80,12 @@ function MediaTab({ kind, onSend }: { kind: MediaKind; onSend: (file: File) => v
     setState('loading');
     const t = window.setTimeout(() => {
       setBroken(new Set());
+      setLoaded(0);
       active.search(kind, q).then((r) => { if (!dead) { setItems(r); setState('idle'); setMessage(r.length ? '' : 'Nothing found.'); } })
         .catch((e: Error) => { if (!dead) { setItems([]); setState('error'); setMessage(e.message); } });
     }, q ? 350 : 0);
     return () => { dead = true; window.clearTimeout(t); };
-  }, [active, kind, q, missing]);
+  }, [active, kind, q, missing, again]);
 
   async function add(file: File | undefined): Promise<void> {
     if (!file) return;
@@ -135,9 +138,12 @@ function MediaTab({ kind, onSend }: { kind: MediaKind; onSend: (file: File) => v
         <div className={`mp-grid ${kind}s`} aria-busy={state === 'loading'}>
           {state === 'loading' && items.length === 0 ? <div className="mp-note wide">Searching…</div> : null}
           {state !== 'loading' && message ? <div className="mp-note wide" role="status">{message}</div> : null}
+          {state !== 'loading' && items.length > 0 && loaded === 0 && broken.size >= Math.min(3, items.length) ? (
+            <div className="mp-note wide" role="status">The pictures could not be loaded. A blocker or filter on this browser or network may be stopping {active?.label}. <button type="button" className="link" onClick={() => setAgain((n) => n + 1)}>Try again</button></div>
+          ) : null}
           {items.filter((it) => !broken.has(it.id)).map((it) => (
             <button key={it.id} type="button" className="mp-tile" title={it.title} aria-label={it.title || (kind === 'gif' ? 'GIF' : 'Sticker')} disabled={busy} onClick={() => void sendOnline(it)}>
-              {it.glyph ? <Emoji emoji={it.glyph} size={40} /> : <img src={it.preview ?? it.send} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" draggable={false} onError={() => setBroken((b) => new Set(b).add(it.id))} />}
+              {it.glyph ? <Emoji emoji={it.glyph} size={40} /> : <img src={it.preview ?? it.send} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" draggable={false} onLoad={() => setLoaded((n) => n + 1)} onError={() => setBroken((b) => new Set(b).add(it.id))} />}
             </button>
           ))}
         </div>

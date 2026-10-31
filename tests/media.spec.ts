@@ -92,3 +92,30 @@ test('more reactions from the emoji grid, and the GIF keys in Settings', async (
   await page.screenshot({ path: `test-results/${info.project.name}-settings-keys.png` });
   await page.getByLabel('Giphy key').fill('');
 });
+
+test('appearance: black theme, accent colour and wallpaper apply and stay', async ({ page }, info) => {
+  await openChat(page);
+  await page.goto('/#/settings');
+  const root = page.locator('html');
+  await page.getByRole('button', { name: /^Theme/ }).click();
+  await page.getByRole('radio', { name: /^Black/ }).click();
+  await expect(root).toHaveAttribute('data-black', '1');
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim())).toBe('#000000');
+  await page.getByRole('button', { name: /^Accent colour/ }).click();
+  await page.getByRole('radio', { name: 'Blue' }).click();
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())).not.toBe('');
+  await expect(page.getByRole('button', { name: /^Accent colour/ })).toContainText('Blue');
+  await page.getByRole('button', { name: /^Chat wallpaper/ }).click();
+  await page.getByRole('radio', { name: 'Gradient' }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.screenshot({ path: `test-results/${info.project.name}-appearance.png` });
+  await page.reload();
+  await expect(root).toHaveAttribute('data-black', '1');
+  await expect(page.getByRole('button', { name: /^Accent colour/ })).toContainText('Blue');
+  await page.getByRole('button', { name: /^Chats$/ }).click();
+  await page.getByRole('button', { name: /Weekend plans/ }).click();
+  await expect.poll(() => page.locator('.messages').evaluate((el) => getComputedStyle(el).backgroundImage)).toContain('linear-gradient');
+  await page.screenshot({ path: `test-results/${info.project.name}-black-chat.png` });
+  // back to the defaults for the next test
+  await page.evaluate(() => localStorage.removeItem('ember.prefs'));
+});

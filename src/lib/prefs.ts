@@ -2,7 +2,14 @@ import { create } from 'zustand';
 
 /** Settings kept on this browser. Everything is read and written defensively: storage can be blocked (private windows, some iOS modes). */
 export interface Prefs {
-  theme: 'system' | 'light' | 'dark';
+  theme: 'system' | 'light' | 'dark' | 'black';
+  /** The accent colour as "#rrggbb", or empty for Ember's own orange. */
+  accent: string;
+  wallpaper: 'doodle' | 'gradient' | 'dots' | 'plain' | 'photo';
+  /** How much a photo wallpaper is darkened, 0 to 70. */
+  wallpaperDim: number;
+  /** Counts photo changes, so the page redraws the wallpaper. */
+  wallpaperPhoto: number;
   enterSends: boolean;
   sounds: boolean;
   spellcheck: boolean;
@@ -17,7 +24,7 @@ export interface Prefs {
 }
 
 const KEY = 'ember.prefs';
-const DEFAULTS: Prefs = { theme: 'system', enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, giphyKey: '', imgurId: '' };
+const DEFAULTS: Prefs = { theme: 'system', accent: '', wallpaper: 'doodle', wallpaperDim: 25, wallpaperPhoto: 0, enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, giphyKey: '', imgurId: '' };
 
 function load(): Prefs {
   try {
@@ -40,10 +47,3 @@ export const usePrefs = create<Prefs & { set: (p: Partial<Prefs>) => void }>((se
     }
   },
 }));
-
-/** Apply the theme to the page (and the colour of the browser bar). */
-export function applyTheme(theme: Prefs['theme']): void {
-  const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  for (const m of document.querySelectorAll('meta[name="theme-color"]')) m.setAttribute('content', dark ? '#16110E' : '#FFFBF8');
-}

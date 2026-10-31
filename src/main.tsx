@@ -3,13 +3,17 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import { installCrashReporter } from './lib/crashReport';
 import { listenForInstall } from './lib/install';
-import { applyTheme, usePrefs } from './lib/prefs';
+import { usePrefs } from './lib/prefs';
+import { applyLook } from './lib/theme';
 import { unlockAudio } from './lib/sounds';
 import { startServiceWorker } from './lib/update';
 import { installViewport } from './lib/viewport';
 import { App } from './ui/App';
 
-applyTheme(usePrefs.getState().theme);
+{
+  const p = usePrefs.getState();
+  void applyLook({ theme: p.theme, accent: p.accent, wallpaper: p.wallpaper, wallpaperDim: p.wallpaperDim });
+}
 installViewport();
 installCrashReporter();
 listenForInstall();
