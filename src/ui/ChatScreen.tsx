@@ -1,0 +1,445 @@
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { api } from '../lib/api';
+import { startCall } from '../lib/call';
+import { clock, dayLabel, isOnline, isSticker, roomPeer, roomTitle, sameDay } from '../lib/format';
+import { usePrefs } from '../lib/prefs';
+import { useStore } from '../lib/store';
+import { isIOS } from '../lib/viewport';
+import type { LinkPreview, Message, Room, User } from '../lib/types';
+import { Avatar, Confirm, Icon, IconButton, Sheet, type IconName } from './kit';
+import { AttachmentView, Viewer } from './media';
+import { Recorder } from './Recorder';
+import { RoomInfo } from './RoomInfo';
+
+const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
+
+function Linkified({ text }: { text: string }) {
+  const parts = text.split(URL_RE);
+  return (
+    <>
+      {parts.map((p, i) => (i % 2 === 1 ? <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow">{p}</a> : p))}
+    </>
+  );
+}
+
+const previews = new Map<string, LinkPreview | null | Promise<LinkPreview | null>>();
+function usePreview(text: string, enabled: boolean): LinkPreview | null {
+  const url = enabled ? text.match(URL_RE)?.[0] : undefined;
+  const [p, setP] = useState<LinkPreview | null>(null);
+  useEffect(() => {
+    if (!url) return;
+    let dead = false;
+    let cached = previews.get(url);
+    if (cached === undefined) {
+      cached = api.preview(url).then((r) => r.preview).catch(() => null);
+      previews.set(url, cached);
+      void cached.then((v) => previews.set(url, v));
+    }
+    void Promise.resolve(cached).then((v) => { if (!dead) setP(v); });
+    return () => { dead = true; };
+  }, [url]);
+  return p;
+}
+
+interface BubbleProps {
+  m: Message;
+  room: Room;
+  meId: string;
+  mine: boolean;
+  first: boolean;
+  last: boolean;
+  showName: boolean;
+  text: { text: string; locked: boolean; failed: boolean };
+  quoteText: string;
+  status: 'sending' | 'failed' | 'sent' | 'read';
+  onMenu: (m: Message) => void;
+  onOpenMedia: (url: string, name: string) => void;
+  onJump: (id: string) => void;
+  onRetry: (m: Message) => void;
+  onDiscard: (m: Message) => void;
+  onReact: (m: Message, e: string) => void;
+}
+
+const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName, text, quoteText, status, onMenu, onOpenMedia, onJump, onRetry, onDiscard, onReact }: BubbleProps) {
+  const timer = useRef<number | null>(null);
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const deleted = !!m.deletedAt;
+  const sticker = m.attachments.length === 1 && isSticker(m.attachments[0]!) && !text.text;
+  const preview = usePreview(text.text, !room.encrypted && !deleted);
+  const sender = m.user as User | undefined;
+
+  const cancel = (): void => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const counts = useMemo(() => {
+    const map = new Map<string, { n: number; me: boolean }>();
+    for (const r of m.reactions) {
+      const e = map.get(r.emoji) ?? { n: 0, me: false };
+      e.n++;
+      if (r.user_id === meId) e.me = true;
+      map.set(r.emoji, e);
+    }
+    return [...map.entries()];
+  }, [m.reactions, meId]);
+
+  const body = deleted ? 'This message was deleted' : text.locked ? 'Sealed message. Set up encryption to read it.' : text.failed ? 'This message could not be read.' : text.text;
+
+  return (
+    <>
+      <div className={`bubble-row ${mine ? 'mine' : 'theirs'}${first ? ' gap' : ' tight'}`} data-id={m.id}>
+        {!mine && room.kind === 'group' ? (last ? <Avatar user={sender} name={sender?.displayName ?? '?'} size={30} /> : <span style={{ width: 30, flex: 'none' }} />) : null}
+        <div
+          className={`bubble noselect${deleted ? ' deleted' : ''}${sticker ? ' sticker' : ''}${m.attachments.length && !deleted ? ' has-media' : ''}${status === 'sending' ? ' pending' : ''}${status === 'failed' ? ' failed' : ''}`}
+          role="group"
+          aria-label={`${mine ? 'You' : sender?.displayName ?? 'Someone'}, ${clock(m.createdAt)}`}
+          tabIndex={0}
+          onContextMenu={(e) => { e.preventDefault(); onMenu(m); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'ContextMenu') { e.preventDefault(); onMenu(m); } }}
+          onPointerDown={(e) => {
+            if (e.pointerType === 'mouse' || deleted) return;
+            start.current = { x: e.clientX, y: e.clientY };
+            cancel();
+            timer.current = window.setTimeout(() => { timer.current = null; if (navigator.vibrate) navigator.vibrate(12); onMenu(m); }, 420);
+          }}
+          onPointerMove={(e) => { if (start.current && Math.hypot(e.clientX - start.current.x, e.clientY - start.current.y) > 8) cancel(); }}
+          onPointerUp={cancel}
+          onPointerCancel={cancel}
+          onPointerLeave={cancel}
+        >
+          {showName && !mine && !sticker ? <div className="sender" style={{ color: sender?.avatarColor }}>{sender?.displayName ?? 'Someone'}</div> : null}
+          {m.forwarded && !deleted ? <div className="fwd">Forwarded</div> : null}
+          {m.replyTo && !deleted ? (
+            <div className="quote" role="button" tabIndex={0} onClick={() => onJump(m.replyTo!.id)} onKeyDown={(e) => { if (e.key === 'Enter') onJump(m.replyTo!.id); }}>
+              <b>{m.replyTo.userId === meId ? 'You' : room.members.find((u) => u.id === m.replyTo!.userId)?.displayName ?? 'Someone'}</b>
+              <span>{m.replyTo.deleted ? 'This message was deleted' : quoteText}</span>
+            </div>
+          ) : null}
+          {!deleted ? m.attachments.map((a) => <div key={a.id} style={{ marginBottom: 2 }}><AttachmentView a={a} roomId={m.roomId} onOpen={(att, url) => onOpenMedia(url, att.filename)} /></div>) : null}
+          {body ? <div className="text">{deleted || text.locked || text.failed ? body : <Linkified text={body} />}</div> : null}
+          {preview && (preview.title || preview.image) ? (
+            <a className="link-card" href={preview.url} target="_blank" rel="noopener noreferrer nofollow">
+              {preview.image ? <img src={preview.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
+              <div>{preview.siteName ? <small>{preview.siteName}</small> : null}<b>{preview.title}</b>{preview.description ? <span>{preview.description}</span> : null}</div>
+            </a>
+          ) : null}
+          <span className="meta">
+            {m.editedAt && !deleted ? <span>edited</span> : null}
+            <span>{clock(m.createdAt)}</span>
+            {mine && !deleted ? <Icon name={status === 'sending' ? 'clock' : status === 'read' ? 'doneAll' : 'check'} className={status === 'read' ? 'read' : undefined} /> : null}
+          </span>
+          <div style={{ clear: 'both' }} />
+        </div>
+      </div>
+      {counts.length > 0 && !deleted ? (
+        <div className={`reactions${mine ? ' mine' : ''}`} style={{ marginLeft: !mine && room.kind === 'group' ? 48 : undefined }}>
+          {counts.map(([emoji, c]) => (
+            <button key={emoji} type="button" className={`reaction${c.me ? ' me' : ''}`} aria-label={`${emoji} ${c.n}${c.me ? ', yours' : ''}`} onClick={() => onReact(m, emoji)}>{emoji}{c.n > 1 ? <small>{c.n}</small> : null}</button>
+          ))}
+        </div>
+      ) : null}
+      {status === 'failed' ? (
+        <div className="retry-line">Not sent.<button type="button" onClick={() => onRetry(m)}>Try again</button><button type="button" onClick={() => onDiscard(m)}>Delete</button></div>
+      ) : null}
+    </>
+  );
+});
+
+export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; onBack: () => void; onClose: () => void; wide: boolean }) {
+  const store = useStore();
+  const { me, rooms, messages, pending, history, typing, e2ee, openRoom, send, sendFiles, events, replyTo, editing, activeCalls } = store;
+  const room = rooms.find((r) => r.id === roomId);
+  const list = messages[roomId];
+  const enterSends = usePrefs((s) => s.enterSends);
+  const spell = usePrefs((s) => s.spellcheck);
+
+  const scroller = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+  const lastCount = useRef(0);
+  const [below, setBelow] = useState(false);
+  const [menu, setMenu] = useState<Message | null>(null);
+  const [fwd, setFwd] = useState<Message | null>(null);
+  const [del, setDel] = useState<Message | null>(null);
+  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
+  const [info, setInfo] = useState(false);
+  const [attach, setAttach] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [recording, setRecording] = useState(false);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
+  const docs = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void openRoom(roomId);
+    stick.current = true;
+    setDraft(window.localStorage?.getItem(`ember.draft.${roomId}`) ?? '');
+    setFiles([]);
+    setInfo(false);
+    return () => void openRoom(null);
+  }, [roomId, openRoom]);
+
+  // Drafts survive switching chats and reloads, as they do in the Android app.
+  useEffect(() => {
+    try {
+      if (draft) localStorage.setItem(`ember.draft.${roomId}`, draft);
+      else localStorage.removeItem(`ember.draft.${roomId}`);
+    } catch {
+      /* storage blocked: the draft only lives while the chat is open */
+    }
+  }, [draft, roomId]);
+
+  const toBottom = useCallback((smooth = false) => {
+    const el = scroller.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+  }, []);
+
+  // Follow new messages when already at the bottom (or when I sent one); otherwise offer a button.
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (!el || !list) return;
+    const added = list.length - lastCount.current;
+    const mineLast = list.length > 0 && list[list.length - 1]!.userId === me?.id;
+    if (lastCount.current === 0 || stick.current || (added > 0 && mineLast)) toBottom();
+    else if (added > 0) setBelow(true);
+    lastCount.current = list.length;
+  }, [list, me?.id, toBottom]);
+  useEffect(() => { lastCount.current = 0; setBelow(false); }, [roomId]);
+
+  // When the keyboard opens the list shrinks: keep the newest message in view.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const onResize = (): void => { if (stick.current) toBottom(); };
+    vv?.addEventListener('resize', onResize);
+    return () => vv?.removeEventListener('resize', onResize);
+  }, [toBottom]);
+
+  const onScroll = (): void => {
+    const el = scroller.current;
+    if (!el) return;
+    const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stick.current = gap < 120;
+    if (stick.current) setBelow(false);
+    if (el.scrollTop < 80 && history[roomId] === 'more') {
+      const before = el.scrollHeight;
+      void store.loadOlder(roomId).then(() => requestAnimationFrame(() => { el.scrollTop += el.scrollHeight - before; }));
+    }
+  };
+
+  const jump = useCallback((id: string) => {
+    const el = scroller.current?.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, []);
+
+  const meId = me!.id;
+  const peer = room ? roomPeer(room, meId) : undefined;
+  const reads = room?.reads ?? [];
+  const decrypted = store.text;
+  const call = activeCalls[roomId];
+
+  const rows = useMemo(() => {
+    if (!list || !room) return [];
+    return list.map((m, i) => {
+      const prev = list[i - 1];
+      const next = list[i + 1];
+      const first = !prev || prev.userId !== m.userId || !sameDay(prev.createdAt, m.createdAt);
+      const last = !next || next.userId !== m.userId || !sameDay(next.createdAt, m.createdAt);
+      const pend = pending[m.id];
+      const read = !pend && reads.some((r) => r.userId !== meId && r.lastReadAt >= m.createdAt);
+      const quote = m.replyTo ? decrypted({ roomId, body: m.replyTo.body }) : null;
+      return { m, first, last, newDay: !prev || !sameDay(prev.createdAt, m.createdAt), status: (pend ? pend.state : read ? 'read' : 'sent') as BubbleProps['status'], quoteText: quote ? (quote.locked ? 'Sealed message' : quote.text) : '' };
+    });
+  }, [list, room, pending, reads, meId, decrypted, roomId]);
+
+  if (!room || !me) return <div className="empty-main">This chat is not available.</div>;
+
+  const title = roomTitle(room, meId);
+  const typers = Object.entries(typing[roomId] ?? {}).filter(([uid, until]) => uid !== meId && until > Date.now()).map(([uid]) => room.members.find((u) => u.id === uid)?.displayName.split(' ')[0] ?? 'Someone');
+  const sub = typers.length ? `${typers.join(', ')} ${typers.length > 1 ? 'are' : 'is'} typing…` : room.kind === 'group' ? `${room.members.length} members` : isOnline(peer) ? 'Online' : 'Offline';
+  const sealedBlocked = room.encrypted && !e2ee.key;
+  const reply = replyTo[roomId] ?? null;
+  const canSend = !sealedBlocked && (draft.trim().length > 0 || files.length > 0);
+
+  async function submit(): Promise<void> {
+    if (!canSend) return;
+    const text = draft;
+    const picked = files;
+    setDraft('');
+    setFiles([]);
+    stick.current = true;
+    if (editing) {
+      await store.edit(editing, text);
+      return;
+    }
+    if (picked.length) await sendFiles(roomId, picked, text.trim());
+    else await send(roomId, text);
+    input.current?.focus();
+  }
+
+  const grow = (el: HTMLTextAreaElement): void => {
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  };
+
+  function addFiles(list: FileList | File[] | null): void {
+    const picked = Array.from(list ?? []);
+    if (picked.length) setFiles((f) => [...f, ...picked].slice(0, 10));
+  }
+
+  const mineMsg = menu?.userId === meId;
+
+  return (
+    <div className="chat" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
+      <header className="chat-header">
+        {!wide ? <IconButton icon="back" label="Back to chats" onClick={onBack} /> : null}
+        <button type="button" className="who" onClick={() => setInfo(true)} aria-label={`${title}, details`}>
+          <Avatar user={peer} name={title} src={room.kind === 'group' ? room.avatar : undefined} color={room.kind === 'group' ? '#6b8e23' : undefined} size={40} dot />
+          <span style={{ minWidth: 0 }}>
+            <span className="title">{title}{room.encrypted ? <Icon name="lock" className="lock-ico" /> : null}</span>
+            <span className={`sub${typers.length ? ' typing' : ''}`} aria-live="polite">{sub}</span>
+          </span>
+        </button>
+        <IconButton icon="phone" label="Voice call" onClick={() => void startCall(roomId, false)} />
+        <IconButton icon="video" label="Video call" onClick={() => void startCall(roomId, true)} />
+        <IconButton icon="more" label="More" onClick={() => setInfo(true)} />
+      </header>
+
+      {call && !call.ringing ? (
+        <button type="button" className="banner" style={{ margin: 0, borderRadius: 0 }} onClick={() => void startCall(roomId, true, true)}>
+          <Icon name="phone" /><span className="grow">A call is going on. Tap to join.</span>
+        </button>
+      ) : null}
+      {room.pinned && room.pinned.length > 0 ? (
+        <button type="button" className="banner warn" style={{ margin: 0, borderRadius: 0, textAlign: 'left' }} onClick={() => jump(room.pinned![0]!.id)}>
+          <Icon name="pin" /><span className="grow" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(() => { const p = decrypted(room.pinned![0]!); return p.locked ? 'Pinned message' : p.text || 'Pinned message'; })()}</span>
+        </button>
+      ) : null}
+
+      <div className="messages scroll" ref={scroller} onScroll={onScroll} role="log" aria-live="off" aria-label={`Messages with ${title}`}>
+        {history[roomId] === 'loading' ? <div className="older">Loading…</div> : null}
+        {history[roomId] === 'more' ? <div className="older">Scroll up for older messages</div> : null}
+        {rows.map(({ m, first, last, newDay, status, quoteText }) => (
+          <div key={m.id}>
+            {newDay ? <div className="day"><span>{dayLabel(m.createdAt)}</span></div> : null}
+            <Bubble m={m} room={room} meId={meId} mine={m.userId === meId} first={first} last={last} showName={room.kind === 'group' && first} text={decrypted(m)} quoteText={quoteText} status={status}
+              onMenu={setMenu} onOpenMedia={(url, name) => setViewer({ url, name })} onJump={jump} onRetry={(x) => void store.retry(roomId, x.id)} onDiscard={(x) => store.discard(roomId, x.id)} onReact={(x, e) => void store.react(x, e)} />
+          </div>
+        ))}
+        {(events[roomId] ?? []).slice(-5).map((e) => <div key={e.id} className="event">{e.text}</div>)}
+        {rows.length === 0 && history[roomId] !== 'loading' ? <div className="empty-main" style={{ padding: 40 }}>No messages yet. Say hello.</div> : null}
+        {below ? <button type="button" className="new-below" onClick={() => { toBottom(true); setBelow(false); }}>New messages</button> : null}
+      </div>
+
+      {sealedBlocked ? <EncryptionBanner /> : null}
+
+      <div className="composer-wrap">
+        {reply ? (
+          <div className="reply-bar"><div className="grow"><b>{reply.userId === meId ? 'You' : room.members.find((u) => u.id === reply.userId)?.displayName}</b><span>{(() => { const t = decrypted(reply); return t.locked ? 'Sealed message' : t.text || 'Attachment'; })()}</span></div><IconButton icon="close" label="Cancel reply" onClick={() => store.setReply(roomId, null)} /></div>
+        ) : null}
+        {editing ? (
+          <div className="reply-bar"><div className="grow"><b>Editing</b><span>{decrypted(editing).text}</span></div><IconButton icon="close" label="Cancel editing" onClick={() => { store.setEditing(null); setDraft(''); }} /></div>
+        ) : null}
+        {files.length > 0 ? (
+          <div className="chip-list" aria-label="Attachments to send">
+            {files.map((f, i) => <span className="chip" key={`${f.name}${i}`}><Icon name={f.type.startsWith('image/') ? 'photo' : 'file'} className="chip-ico" />{f.name.slice(0, 24)}<button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles((x) => x.filter((_, j) => j !== i))}>✕</button></span>)}
+          </div>
+        ) : null}
+        <div className="composer">
+          {recording ? (
+            <Recorder onDone={(file) => { setRecording(false); if (file) void sendFiles(roomId, [file]); }} />
+          ) : (
+            <>
+              <div className="field">
+                <textarea
+                  ref={input}
+                  rows={1}
+                  placeholder={sealedBlocked ? 'Set up encryption first' : 'Message'}
+                  aria-label="Message"
+                  value={draft}
+                  disabled={sealedBlocked}
+                  spellCheck={spell}
+                  autoCorrect={spell ? 'on' : 'off'}
+                  autoCapitalize="sentences"
+                  enterKeyHint={enterSends ? 'send' : 'enter'}
+                  onChange={(e) => { setDraft(e.target.value); grow(e.target); if (e.target.value) store.typingNow(roomId); }}
+                  onFocus={() => { stick.current = true; window.setTimeout(() => toBottom(), 250); }}
+                  onKeyDown={(e) => {
+                    // Enter sends only if switched on (a phone keyboard's Enter is for new lines); Ctrl/Cmd+Enter always sends.
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing && ((enterSends && !e.shiftKey) || e.ctrlKey || e.metaKey)) { e.preventDefault(); void submit().then(() => { const el = input.current; if (el) grow(el); }); }
+                    if (e.key === 'Escape' && editing) { store.setEditing(null); setDraft(''); }
+                  }}
+                  onPaste={(e) => { const pf = Array.from(e.clipboardData.files); if (pf.length) { e.preventDefault(); addFiles(pf); } }}
+                />
+                <IconButton icon="attach" label="Attach" onClick={() => setAttach(true)} disabled={sealedBlocked} />
+              </div>
+              {canSend ? <IconButton icon="send" label={editing ? 'Save' : 'Send'} className="send" onClick={() => { void submit().then(() => { const el = input.current; if (el) grow(el); }); }} /> : <IconButton icon="mic" label="Record a voice message" className="send" onClick={() => setRecording(true)} disabled={sealedBlocked} />}
+            </>
+          )}
+        </div>
+        <input ref={picker} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+        <input ref={camera} type="file" accept="image/*,video/*" capture="environment" hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+        <input ref={docs} type="file" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+      </div>
+
+      {attach ? (
+        <Sheet onClose={() => setAttach(false)}>
+          <MenuItem icon="photo" label="Photo or video" onClick={() => { setAttach(false); picker.current?.click(); }} />
+          <MenuItem icon="camera" label={isIOS() ? 'Take a photo' : 'Camera'} onClick={() => { setAttach(false); camera.current?.click(); }} />
+          <MenuItem icon="file" label="File" onClick={() => { setAttach(false); docs.current?.click(); }} />
+        </Sheet>
+      ) : null}
+
+      {menu ? (
+        <Sheet onClose={() => setMenu(null)}>
+          {!menu.deletedAt ? (
+            <div className="react-bar">{QUICK.map((e) => <button key={e} type="button" aria-label={`React ${e}`} onClick={() => { void store.react(menu, e); setMenu(null); }}>{e}</button>)}</div>
+          ) : null}
+          {!menu.deletedAt ? <MenuItem icon="reply" label="Reply" onClick={() => { store.setReply(roomId, menu); setMenu(null); input.current?.focus(); }} /> : null}
+          {!menu.deletedAt && decrypted(menu).text ? <MenuItem icon="copy" label="Copy" onClick={() => { void navigator.clipboard?.writeText(decrypted(menu).text).then(() => store.showToast('Copied')).catch(() => undefined); setMenu(null); }} /> : null}
+          {!menu.deletedAt ? <MenuItem icon="forward" label="Forward" onClick={() => { setFwd(menu); setMenu(null); }} /> : null}
+          {!menu.deletedAt ? <MenuItem icon="pin" label="Pin or unpin" onClick={() => { void store.pin(menu); setMenu(null); }} /> : null}
+          {mineMsg && !menu.deletedAt && !menu.attachments.length ? <MenuItem icon="edit" label="Edit" onClick={() => { store.setEditing(menu); setDraft(decrypted(menu).text); setMenu(null); window.setTimeout(() => { const el = input.current; if (el) { el.focus(); grow(el); } }, 50); }} /> : null}
+          {mineMsg && !menu.deletedAt ? <MenuItem icon="trash" label="Delete" danger onClick={() => { setDel(menu); setMenu(null); }} /> : null}
+        </Sheet>
+      ) : null}
+      {fwd ? <ForwardTo message={fwd} onClose={() => setFwd(null)} /> : null}
+      {del ? <Confirm title="Delete this message?" text="It disappears for everyone in the chat." yes="Delete" danger onYes={() => void store.remove(del)} onClose={() => setDel(null)} /> : null}
+      {viewer ? <Viewer url={viewer.url} name={viewer.name} onClose={() => setViewer(null)} /> : null}
+      {info ? <RoomInfo room={room} onClose={() => setInfo(false)} onLeft={onClose} /> : null}
+    </div>
+  );
+}
+
+function MenuItem({ icon, label, onClick, danger }: { icon: IconName; label: string; onClick: () => void; danger?: boolean }) {
+  return <button type="button" className={`menu-item${danger ? ' danger' : ''}`} onClick={onClick}><Icon name={icon} />{label}</button>;
+}
+
+function ForwardTo({ message, onClose }: { message: Message; onClose: () => void }) {
+  const { rooms, me, forward } = useStore();
+  return (
+    <Sheet title="Forward to" onClose={onClose}>
+      {rooms.filter((r) => !r.archived).map((r) => (
+        <button key={r.id} type="button" className="check-row" onClick={() => { void forward(message, r.id); onClose(); }}>
+          <Avatar user={roomPeer(r, me!.id)} name={roomTitle(r, me!.id)} src={r.avatar} size={40} />
+          <span>{roomTitle(r, me!.id)}</span>
+        </button>
+      ))}
+    </Sheet>
+  );
+}
+
+/** Shown above the message box when a chat is sealed and this browser does not have the key yet. */
+function EncryptionBanner() {
+  const { e2ee, setupE2ee } = useStore();
+  return (
+    <div className="banner" role="status">
+      <Icon name="lock" />
+      <span className="grow">
+        {e2ee.status === 'waiting' ? 'Waiting for one of your other devices to approve this browser. Open Ember on your phone and this will unlock.' : 'This chat is end-to-end encrypted. Set up encryption in this browser to read and write.'}
+      </span>
+      <button type="button" className="btn tonal" disabled={e2ee.busy} onClick={() => void setupE2ee(e2ee.status !== 'waiting')}>{e2ee.status === 'waiting' ? 'Check again' : 'Set up'}</button>
+    </div>
+  );
+}
