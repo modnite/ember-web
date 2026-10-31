@@ -273,8 +273,8 @@ a { color: var(--primary); }
 
 /* ------------------------------------------------------------------ settings, people, login */
 .page { flex: 1; min-height: 0; }
-.group-title { padding: 18px 20px 6px; font-size: 13px; font-weight: 700; color: var(--primary); }
-.setting { display: flex; align-items: center; gap: 16px; padding: 10px 20px; padding-left: calc(var(--safe-left) + 20px); padding-right: calc(var(--safe-right) + 20px); min-height: 60px; width: 100%; text-align: left; }
+.group-title { padding: 16px 20px 4px; font-size: 13px; font-weight: 700; color: var(--primary); }
+.setting { display: flex; align-items: center; gap: 20px; padding: 12px 20px; padding-left: calc(var(--safe-left) + 20px); padding-right: calc(var(--safe-right) + 20px); min-height: 64px; width: 100%; text-align: left; }
 button.setting:hover { background: var(--container); }
 svg.ico { width: 24px; height: 24px; fill: var(--on-surface-variant); flex: none; }
 svg:not([width]):not([class]) { width: 1.25em; height: 1.25em; fill: currentColor; }
@@ -287,7 +287,7 @@ svg:not([width]):not([class]) { width: 1.25em; height: 1.25em; fill: currentColo
 .seg { display: inline-flex; border: 1px solid var(--outline); border-radius: 20px; overflow: hidden; }
 .seg button { padding: 0 14px; min-height: 38px; font-size: 14px; }
 .seg button[aria-pressed='true'] { background: var(--primary-container); color: var(--on-primary-container); font-weight: 600; }
-.profile { display: flex; align-items: center; gap: 16px; padding: 16px 20px; padding-left: calc(var(--safe-left) + 20px); }
+.profile { display: flex; align-items: center; gap: 16px; padding: 14px 20px; padding-left: calc(var(--safe-left) + 20px); }
 .profile h2 { margin: 0; font-size: 20px; }
 .profile p { margin: 0; color: var(--on-surface-variant); }
 .login { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--safe-top) + 24px) calc(var(--safe-right) + 24px) calc(var(--safe-bottom) + 24px) calc(var(--safe-left) + 24px); background: var(--bg); overflow-y: auto; }

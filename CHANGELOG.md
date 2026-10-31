@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.0
+
+* Spacing now matches the Android app: section headings, rows, icon gaps and the profile row use the same sizes in both.
+* Version numbers follow the Android app: the last number for small fixes, the middle number for features, improvements and major fixes, the same release for both where they ship together.
+
 ## 0.7.0
 
 * Wallpapers work like the big messengers: a flat colour that follows the theme and accent, a switch for doodles, and a dimming slider. Accent colour washes the flat colour. A photo can still be used.
