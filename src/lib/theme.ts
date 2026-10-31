@@ -117,7 +117,7 @@ const enc = (svg: string): string => `url("data:image/svg+xml,${encodeURICompone
 export const DOODLE_KINDS = 16;
 
 /** One small outline, turned a little: the shapes the Android wallpaper scatters. */
-function doodle(kind: number, x: number, y: number, r: number, turn: number): string {
+export function doodle(kind: number, x: number, y: number, r: number, turn: number): string {
   const at = `transform="rotate(${turn} ${x} ${y})"`;
   switch (kind) {
     case 0: return `<circle cx="${x}" cy="${y}" r="${r}" ${at}/>`;
@@ -136,22 +136,22 @@ function doodle(kind: number, x: number, y: number, r: number, turn: number): st
       });
       return `<path d="M${pts.join('L')}Z" ${at}/>`;
     }
-    // A lightning bolt.
-    case 8: return `<path d="M${x + r * 0.3} ${y - r * 1.2}L${x - r * 0.7} ${y + r * 0.1}L${x - r * 0.05} ${y + r * 0.1}L${x - r * 0.3} ${y + r * 1.2}L${x + r * 0.7} ${y - r * 0.2}L${x + r * 0.05} ${y - r * 0.2}Z" ${at}/>`;
-    // An asterisk.
-    case 9: return `<path d="${[0, 60, 120].map((deg) => { const a = (deg * Math.PI) / 180; const dx = r * 1.1 * Math.cos(a); const dy = r * 1.1 * Math.sin(a); return `M${(x - dx).toFixed(2)} ${(y - dy).toFixed(2)}L${(x + dx).toFixed(2)} ${(y + dy).toFixed(2)}`; }).join('')}" ${at}/>`;
+    // A lightning bolt: one open stroke, so nothing crosses itself.
+    case 8: return `<path d="M${x + r * 0.35} ${y - r * 1.2}L${x - r * 0.55} ${y + r * 0.15}L${x + r * 0.15} ${y + r * 0.15}L${x - r * 0.35} ${y + r * 1.2}" ${at}/>`;
+    // A four pointed sparkle.
+    case 9: return `<path d="M${x} ${y - r * 1.2}Q${x + r * 0.15} ${y - r * 0.15} ${x + r * 1.2} ${y}Q${x + r * 0.15} ${y + r * 0.15} ${x} ${y + r * 1.2}Q${x - r * 0.15} ${y + r * 0.15} ${x - r * 1.2} ${y}Q${x - r * 0.15} ${y - r * 0.15} ${x} ${y - r * 1.2}Z" ${at}/>`;
     // A zigzag.
     case 10: return `<path d="M${x - r * 1.3} ${y + r * 0.5}L${x - r * 0.65} ${y - r * 0.5}L${x} ${y + r * 0.5}L${x + r * 0.65} ${y - r * 0.5}L${x + r * 1.3} ${y + r * 0.5}" ${at}/>`;
     // A music note.
     case 11: return `<g ${at}><ellipse cx="${x - r * 0.4}" cy="${y + r * 0.8}" rx="${r * 0.55}" ry="${r * 0.4}"/><path d="M${x + r * 0.15} ${y + r * 0.8}V${y - r * 1.1}M${x + r * 0.15} ${y - r * 1.1}Q${x + r} ${y - r * 0.8} ${x + r * 0.9} ${y - r * 0.1}"/></g>`;
-    // A flower: four petals round a small centre.
-    case 12: return `<g ${at}><circle cx="${x + r * 0.55}" cy="${y}" r="${r * 0.5}"/><circle cx="${x - r * 0.55}" cy="${y}" r="${r * 0.5}"/><circle cx="${x}" cy="${y + r * 0.55}" r="${r * 0.5}"/><circle cx="${x}" cy="${y - r * 0.55}" r="${r * 0.5}"/><circle cx="${x}" cy="${y}" r="${r * 0.2}"/></g>`;
+    // A drop.
+    case 12: return `<path d="M${x} ${y - r * 1.2}C${x + r * 0.9} ${y - r * 0.1} ${x + r * 0.8} ${y + r} ${x} ${y + r}C${x - r * 0.8} ${y + r} ${x - r * 0.9} ${y - r * 0.1} ${x} ${y - r * 1.2}Z" ${at}/>`;
     // A crescent moon.
     case 13: return `<path d="M${x + r * 0.2} ${y - r * 1.1}C${x - r * 1.4} ${y - r * 1.1} ${x - r * 1.4} ${y + r * 1.1} ${x + r * 0.2} ${y + r * 1.1}C${x - r * 0.7} ${y + r * 0.7} ${x - r * 0.7} ${y - r * 0.7} ${x + r * 0.2} ${y - r * 1.1}Z" ${at}/>`;
-    // A speech bubble.
-    case 14: return `<g ${at}><rect x="${x - r * 1.1}" y="${y - r * 0.8}" width="${r * 2.2}" height="${r * 1.3}" rx="${r * 0.4}"/><path d="M${x - r * 0.5} ${y + r * 0.5}L${x - r * 0.7} ${y + r * 1.1}L${x - r * 0.05} ${y + r * 0.5}"/></g>`;
-    // A leaf with its vein.
-    default: return `<g ${at}><path d="M${x - r * 1.1} ${y + r * 0.6}Q${x - r * 0.8} ${y - r * 1.1} ${x + r * 1.1} ${y - r * 0.7}Q${x + r * 0.8} ${y + r * 0.9} ${x - r * 1.1} ${y + r * 0.6}Z"/><path d="M${x - r} ${y + r * 0.6}L${x + r * 0.5} ${y - r * 0.4}"/></g>`;
+    // A speech bubble, tail included, in one outline.
+    case 14: return `<path d="M${x - r * 0.7} ${y - r * 0.8}H${x + r * 0.7}Q${x + r * 1.1} ${y - r * 0.8} ${x + r * 1.1} ${y - r * 0.4}V${y + r * 0.1}Q${x + r * 1.1} ${y + r * 0.5} ${x + r * 0.7} ${y + r * 0.5}H${x - r * 0.05}L${x - r * 0.7} ${y + r * 1.1}L${x - r * 0.55} ${y + r * 0.5}H${x - r * 0.7}Q${x - r * 1.1} ${y + r * 0.5} ${x - r * 1.1} ${y + r * 0.1}V${y - r * 0.4}Q${x - r * 1.1} ${y - r * 0.8} ${x - r * 0.7} ${y - r * 0.8}Z" ${at}/>`;
+    // A leaf with its vein (the vein stays inside the outline).
+    default: return `<g ${at}><path d="M${x - r * 1.1} ${y + r * 0.6}Q${x - r * 0.8} ${y - r * 1.1} ${x + r * 1.1} ${y - r * 0.7}Q${x + r * 0.8} ${y + r * 0.9} ${x - r * 1.1} ${y + r * 0.6}Z"/><path d="M${x - r * 0.7} ${y + r * 0.4}L${x + r * 0.45} ${y - r * 0.4}"/></g>`;
   }
 }
 

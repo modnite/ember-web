@@ -385,12 +385,14 @@ export const useStore = create<State>((set, get) => {
 
     async signIn(username, password, code) {
       const { user } = await api.login(username.trim(), password, code);
+      await keptSession();
       set({ me: user, boot: 'ready' });
       await afterSignIn();
     },
 
     async register(invite, username, displayName, password) {
       const { user } = await api.register(invite.trim(), username.trim(), displayName.trim(), password);
+      await keptSession();
       set({ me: user, boot: 'ready' });
       await afterSignIn();
     },
@@ -671,6 +673,21 @@ export const useStore = create<State>((set, get) => {
       return decryptBody(m.roomId, m.body, key, null);
     },
   };
+
+  /**
+   * Right after signing in, ask who we are. If the server does not know, the browser did not keep the session cookie (Safari's "Block All
+   * Cookies", a private tab, an in-app browser), and "unauthorized" would be all the person ever saw. Say what to change instead.
+   */
+  async function keptSession(): Promise<void> {
+    try {
+      await api.me();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        throw new ApiError(401, 'You signed in, but this browser did not keep the sign-in. Allow cookies for this site. On iPhone: Settings, Apps, Safari, turn off Block All Cookies, and use a normal tab, not a private one or the browser built into another app.');
+      }
+      throw e;
+    }
+  }
 
   async function afterSignIn(): Promise<void> {
     realtime.start();

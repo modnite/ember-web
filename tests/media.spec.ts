@@ -254,3 +254,19 @@ test('Signal sticker packs: search, open a pack, send a sticker', async ({ page 
   await expect(page.locator('img[alt^="sticker-signal-"]')).toHaveCount(before + 1, { timeout: 30_000 });
   await expect.poll(() => page.locator('img[alt^="sticker-signal-"]').last().evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
 });
+
+test.describe('without cookies', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('sign-in explains when the browser does not keep the session cookie', async ({ page }) => {
+    // A browser that blocks cookies: the sign-in works but the next request carries no session, so the server answers 401.
+    await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"unauthorized"}' }));
+    await page.goto('/');
+    await page.locator('#u').fill(process.env.EMBER_USER ?? 'me');
+    await page.locator('#p').fill(process.env.EMBER_PASS ?? 'password123');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByRole('alert')).toContainText('did not keep the sign-in');
+    await expect(page.getByRole('alert')).toContainText('Block All Cookies');
+    await expect(page.locator('#u')).toBeVisible();
+  });
+});

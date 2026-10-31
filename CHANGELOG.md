@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+* If a browser signs you in but does not keep the sign-in (iPhone: Block All Cookies, a private tab, or another app's built-in browser), Ember now says so and says what to change. Before, it showed only "Unauthorized".
+* The wallpaper shapes are drawn as clean single strokes: no overlapping petals, no crossing lines.
+
 ## 0.5.0
 
 * Signal sticker packs in the Stickers tab: search the public directory by what a pack is about, open a pack, tap a sticker to send it. The pictures come straight from Signal's servers.
