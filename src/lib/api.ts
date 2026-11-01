@@ -1,6 +1,6 @@
 import { deviceId } from './device';
 import type {
-  AuthConfig, CallToken, Contacts, E2eeDevice, E2eeWrap, FriendCode, LinkPreview, LookupResult, Message, Room, SearchResult, ServerInfo,
+  AuthConfig, CallToken, Contacts, E2eeDevice, E2eeWrap, FriendCode, LinkPreview, LookupResult, Message, Room, RoomMediaItem, SearchResult, ServerInfo,
   TwoStepStatus, User,
 } from './types';
 
@@ -107,6 +107,8 @@ export const api = {
     return req<{ room: Room }>(`/api/rooms/${id}/avatar`, { method: 'POST', body });
   },
   removeRoomAvatar: (id: string) => req<{ room: Room }>(`/api/rooms/${id}/avatar`, del()),
+  /** Everything shared in a room, newest first, a page at a time. */
+  roomMedia: (id: string, before?: number) => req<{ media: RoomMediaItem[] }>(`/api/rooms/${id}/media${before ? `?before=${before}` : ''}`),
   markRead: (id: string) => req<{ ok: true }>(`/api/rooms/${id}/read`, json({})),
 
   // ---- messages

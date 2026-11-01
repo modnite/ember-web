@@ -23,6 +23,13 @@ export interface Attachment {
   envelope?: string;
 }
 
+/** One file shared in a room, from the room's media list. */
+export interface RoomMediaItem extends Attachment {
+  createdAt: number;
+  messageId: string;
+  userId: string;
+}
+
 export interface Reaction {
   user_id: string;
   emoji: string;

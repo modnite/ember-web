@@ -43,7 +43,9 @@ export function Login() {
     <div className="login-wrap">
       <div className="login">
         <form onSubmit={submit} noValidate>
-          <img className="logo" src="/icons/icon-192.png" alt="" />
+          <svg className="logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fillRule="evenodd" d="M8,3 H16 A5,5 0 0 1 21,8 V11 A5,5 0 0 1 16,16 H13 L7,20.5 L8,16 A5,5 0 0 1 3,11 V8 A5,5 0 0 1 8,3 Z M12,5.8 C12,5.8 9.3,8.3 9.3,10.6 C9.3,12.1 10.5,13.2 12,13.2 C13.5,13.2 14.7,12.1 14.7,10.6 C14.7,9.4 14.1,8.5 13.4,7.8 C13.4,8.8 12.9,9.3 12.4,9.3 C12.7,8.2 12.4,6.9 12,5.8 Z" />
+          </svg>
           <h1>Ember</h1>
           {info?.name ? <p style={{ textAlign: 'center', margin: '0 0 8px', color: 'var(--on-surface-variant)' }}>{info.name}</p> : null}
 

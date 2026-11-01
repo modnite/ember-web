@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+* Mentions, as in the Android app: typing @ in a group lists its members, narrows as you type, and puts in the name when you pick one. An @ inside an email address does not open the list. A name after @ in a message is highlighted, and yours stands out more. Arrow keys, Enter, Tab and Escape work in the list.
+* Shared pictures, files and voice: the chat details have a list of everything shared in the chat, newest first. Pictures and videos in a grid by month, files and voice messages in a list, older ones on request. Sealed pictures open once encryption is set up in this browser.
+* Archive from the chat list, as in the Android app: right click a chat, or press and hold on a phone, and choose Archive or Unarchive. No need to open the chat first.
+* The picture viewer plays videos, and Escape in it closes only the viewer, not the sheet underneath.
+* The sign-in page shows the Ember speech bubble and flame on its own in the accent colour, no circle or tile around it, as in the Android app.
+
 ## 0.8.3
 
 * Nudge answers at once and every time, as in the Android app: your own chat shakes, the phone buzzes and the sound plays when you nudge, with no cool-down that made taps seem to do nothing. The sound is the real nudge recording the Hearth web app and the Android app use, not a beep.

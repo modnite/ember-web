@@ -296,7 +296,7 @@ svg:not([width]):not([class]) { width: 1.25em; height: 1.25em; fill: currentColo
 .profile p { margin: 0; color: var(--on-surface-variant); }
 .login { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--safe-top) + 24px) calc(var(--safe-right) + 24px) calc(var(--safe-bottom) + 24px) calc(var(--safe-left) + 24px); background: var(--bg); overflow-y: auto; }
 .login form { width: min(100%, 380px); display: flex; flex-direction: column; gap: 4px; }
-.login .logo { width: 88px; height: 88px; border-radius: 22px; margin: 0 auto 8px; display: block; }
+.login .logo { width: 96px; height: 96px; margin: 0 auto 4px; display: block; fill: var(--primary); }
 .login h1 { text-align: center; margin: 0 0 12px; color: var(--primary); }
 .login .links { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 8px; }
 .login-wrap { position: fixed; inset: 0; height: var(--vh, 100dvh); overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -476,3 +476,29 @@ input[type='range']::-moz-range-thumb { width: 22px; height: 22px; border-radius
   .settings-cols > section { break-inside: avoid; }
   .settings-cols > section:first-child .group-title { padding-top: 6px; }
 }
+
+/* Shared pictures, files and voice in a chat */
+.shared-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.shared-cell { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--container-high); display: grid; place-items: center; }
+.shared-cell img, .shared-cell video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.shared-cell .shared-ico { width: 28px; height: 28px; fill: var(--on-surface-variant); }
+.shared-play { position: absolute; right: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0, 0, 0, 0.5); display: grid; place-items: center; }
+.shared-play svg { width: 16px; height: 16px; fill: #fff; }
+.shared-file { display: flex; align-items: center; gap: 14px; padding: 10px 0; min-height: 56px; flex-wrap: wrap; }
+.shared-file .shared-ico { width: 24px; height: 24px; fill: var(--on-surface-variant); flex: none; }
+.shared-file b { display: block; overflow-wrap: anywhere; font-weight: 600; }
+.shared-file small { display: block; color: var(--on-surface-variant); font-size: 13px; }
+.shared-audio { flex: 1; min-width: 200px; }
+@media (min-width: 560px) { .shared-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* Mentions: the member list above the message box, and a name after @ in a message */
+.composer-wrap { position: relative; }
+.mention-list { position: absolute; left: calc(var(--safe-left) + 8px); right: calc(var(--safe-right) + 8px); bottom: 100%; margin-bottom: 4px; max-height: 260px; overflow-y: auto; background: var(--container); border-radius: 16px; box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); padding: 4px 0; z-index: 5; }
+.mention-option { display: flex; align-items: center; gap: 12px; width: 100%; padding: 6px 14px; min-height: 44px; text-align: left; }
+.mention-option small { color: var(--on-surface-variant); font-size: 13px; }
+.mention-option[aria-selected='true'], .mention-option:hover { background: var(--container-high); }
+.mention { color: var(--primary); font-weight: 600; }
+.mention.me { background: var(--primary-container); color: var(--on-primary-container); border-radius: 5px; padding: 0 3px; }
+
+/* A long press on a chat opens its menu; the phone's own text selection and callout stay out of the way. */
+.list-wrap .row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }

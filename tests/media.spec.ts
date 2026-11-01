@@ -294,3 +294,66 @@ test.describe('without cookies', () => {
     await expect(page.locator('#u')).toBeVisible();
   });
 });
+
+test('mentions: @ lists the group members, an email does not, and a mention is highlighted', async ({ page }) => {
+  await openChat(page);
+  const box = page.getByRole('textbox', { name: 'Message' });
+  await box.click();
+  await box.pressSequentially('@');
+  const list = page.getByRole('listbox', { name: 'Mention someone' });
+  await expect(list).toBeVisible();
+  await expect(list.getByRole('option')).not.toHaveCount(0);
+  await box.pressSequentially('ma');
+  await expect(list.getByRole('option')).toHaveCount(1);
+  await expect(list.getByRole('option').first()).toContainText('Maya');
+  await box.press('Enter');
+  await expect(list).toBeHidden();
+  await expect(box).toHaveValue('@Maya Okafor ');
+  // an address with an @ in it never opens the list
+  await box.fill('');
+  await box.pressSequentially('mail anna@');
+  await expect(list).toBeHidden();
+  await box.fill('');
+  const tag = `hello @Maya Okafor ${Date.now()}`;
+  await box.fill(tag);
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.locator('.bubble .mention', { hasText: '@Maya Okafor' }).last()).toBeVisible();
+});
+
+test('shared pictures, files and voice: the chat details list what was shared', async ({ page }) => {
+  await openChat(page);
+  await page.getByRole('button', { name: /details/ }).click();
+  await page.getByRole('button', { name: /Shared pictures, files and voice/ }).click();
+  const grid = page.locator('.shared-grid').first();
+  await expect(grid).toBeVisible({ timeout: 10_000 });
+  await expect(grid.locator('.shared-cell').first()).toBeVisible();
+  await grid.locator('.shared-cell').first().click();
+  await expect(page.locator('.viewer')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Files and voice', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Files and voice', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.shared-grid')).toHaveCount(0, { timeout: 8000 });
+});
+
+test('archive from the chat list: right click, archive, find it under Archived, bring it back', async ({ page, request }, info) => {
+  // A group of its own, so the three browsers running together do not archive the same chat.
+  const login = await request.post('/api/auth/login', { data: { username: process.env.EMBER_USER ?? 'me', password: process.env.EMBER_PASS ?? 'password123' } });
+  expect(login.ok()).toBe(true);
+  const name = `Archive check ${info.project.name} ${Date.now()}`;
+  const made = await request.post('/api/rooms', { data: { name, memberIds: [] } });
+  expect(made.ok()).toBe(true);
+  await page.goto('/');
+  await page.locator('#u').fill(process.env.EMBER_USER ?? 'me');
+  await page.locator('#p').fill(process.env.EMBER_PASS ?? 'password123');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  const row = page.getByRole('button', { name: new RegExp(name) });
+  await expect(row).toBeVisible();
+  await row.click({ button: 'right' });
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  await expect(row).toBeHidden();
+  await page.getByRole('button', { name: /^Archived \(/ }).click();
+  await expect(row).toBeVisible();
+  await row.click({ button: 'right' });
+  await page.getByRole('button', { name: 'Unarchive', exact: true }).click();
+  await expect(row).toBeHidden();
+});

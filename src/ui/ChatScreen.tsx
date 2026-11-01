@@ -14,15 +14,27 @@ import { Emoji, EmojiText } from './EmojiText';
 import { EmojiPicker, MediaPanel } from './MediaPanel';
 import { AttachmentView, attachmentBlob, Viewer } from './media';
 import { Recorder } from './Recorder';
+import { insertMention, mentionMatches, mentionTrigger, splitMentions, type Person } from '../lib/mentions';
 import { RoomInfo } from './RoomInfo';
 
 const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
 
-function Linkified({ text }: { text: string }) {
+/** Words of a message that are not links: a member named after @ is highlighted, and yours stands out more. */
+function Mentioned({ text, members, meId }: { text: string; members: Person[]; meId: string }) {
+  return (
+    <>
+      {splitMentions(text, members).map((piece, i) => (piece.mention
+        ? <span key={i} className={`mention${piece.mention.id === meId ? ' me' : ''}`}>{piece.text}</span>
+        : <EmojiText key={i} text={piece.text} />))}
+    </>
+  );
+}
+
+function Linkified({ text, members = [], meId = '' }: { text: string; members?: Person[]; meId?: string }) {
   const parts = text.split(URL_RE);
   return (
     <>
-      {parts.map((p, i) => (i % 2 === 1 ? <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow">{p}</a> : <EmojiText key={i} text={p} />))}
+      {parts.map((p, i) => (i % 2 === 1 ? <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow">{p}</a> : <Mentioned key={i} text={p} members={members} meId={meId} />))}
     </>
   );
 }
@@ -194,7 +206,7 @@ const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName
             </div>
           ) : null}
           {!deleted ? m.attachments.map((a) => <div key={a.id} style={{ marginBottom: 2 }}><AttachmentView a={a} roomId={m.roomId} onOpen={(att, url) => onOpenMedia(url, att.filename)} /></div>) : null}
-          {body ? <div className={`text${!deleted && !text.locked && !text.failed && !m.attachments.length && isJumbo(body) ? ' jumbo' : ''}`}>{deleted || text.locked || text.failed ? body : <Linkified text={body} />}</div> : null}
+          {body ? <div className={`text${!deleted && !text.locked && !text.failed && !m.attachments.length && isJumbo(body) ? ' jumbo' : ''}`}>{deleted || text.locked || text.failed ? body : <Linkified text={body} members={room.kind === 'group' ? room.members : []} meId={meId} />}</div> : null}
           {preview && (preview.title || preview.image) ? (
             <a className="link-card" href={preview.url} target="_blank" rel="noopener noreferrer nofollow">
               {preview.image ? <img src={preview.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
@@ -265,6 +277,8 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   }, [nudgedAt]);
   const [moreReact, setMoreReact] = useState<Message | null>(null);
   const [draft, setDraft] = useState('');
+  const [caret, setCaret] = useState(0);
+  const [mentionIdx, setMentionIdx] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [recording, setRecording] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -394,6 +408,23 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const typers = Object.entries(typing[roomId] ?? {}).filter(([uid, until]) => uid !== meId && until > Date.now()).map(([uid]) => room.members.find((u) => u.id === uid)?.displayName.split(' ')[0] ?? 'Someone');
   const sub = typers.length ? `${typers.join(', ')} ${typers.length > 1 ? 'are' : 'is'} typing…` : room.kind === 'group' ? `${room.members.length} members` : isOnline(peer) ? 'Online' : 'Offline';
   const sealedBlocked = room.encrypted && !e2ee.key;
+  // Typing @ in a group lists its members; the list closes when the @ is part of something else (an email) or the name is finished.
+  const mention = room.kind === 'group' && !sealedBlocked ? mentionTrigger(draft, caret) : null;
+  const mentionOptions = mention ? mentionMatches(room.members, mention.query, meId) : [];
+  const pickMention = (p: Person): void => {
+    if (!mention) return;
+    const next = insertMention(draft, mention, caret, p);
+    setDraft(next.text);
+    setCaret(next.caret);
+    setMentionIdx(0);
+    window.requestAnimationFrame(() => {
+      const el = input.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(next.caret, next.caret);
+      grow(el);
+    });
+  };
   const reply = replyTo[roomId] ?? null;
   const canSend = !sealedBlocked && (draft.trim().length > 0 || files.length > 0);
 
@@ -513,6 +544,15 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
       {sealedBlocked ? <EncryptionBanner /> : null}
 
       <div className="composer-wrap">
+        {mentionOptions.length > 0 ? (
+          <div className="mention-list" role="listbox" aria-label="Mention someone">
+            {mentionOptions.map((p, i) => (
+              <button key={p.id} type="button" role="option" aria-selected={i === Math.min(mentionIdx, mentionOptions.length - 1)} className="mention-option" onMouseDown={(e) => e.preventDefault()} onClick={() => pickMention(p)}>
+                <Avatar user={p as User} size={30} /><span className="grow">{p.displayName}</span><small>@{p.username}</small>
+              </button>
+            ))}
+          </div>
+        ) : null}
         {reply ? (
           <div className="reply-bar"><div className="grow"><b>{reply.userId === meId ? 'You' : room.members.find((u) => u.id === reply.userId)?.displayName}</b><span>{(() => { const t = decrypted(reply); return t.locked ? 'Sealed message' : t.text || 'Attachment'; })()}</span></div><IconButton icon="close" label="Cancel reply" onClick={() => store.setReply(roomId, null)} /></div>
         ) : null}
@@ -542,9 +582,16 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
                   autoCorrect={spell ? 'on' : 'off'}
                   autoCapitalize="sentences"
                   enterKeyHint={enterSends ? 'send' : 'enter'}
-                  onChange={(e) => { setDraft(e.target.value); grow(e.target); if (e.target.value) store.typingNow(roomId); }}
+                  onChange={(e) => { setDraft(e.target.value); setCaret(e.target.selectionStart); setMentionIdx(0); grow(e.target); if (e.target.value) store.typingNow(roomId); }}
+                  onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
                   onFocus={() => { stick.current = true; setPanel(false); window.setTimeout(() => toBottom(), 250); }}
                   onKeyDown={(e) => {
+                    if (mentionOptions.length > 0) {
+                      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIdx((i) => (i + 1) % mentionOptions.length); return; }
+                      if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIdx((i) => (i + mentionOptions.length - 1) % mentionOptions.length); return; }
+                      if ((e.key === 'Enter' || e.key === 'Tab') && !e.nativeEvent.isComposing) { e.preventDefault(); pickMention(mentionOptions[Math.min(mentionIdx, mentionOptions.length - 1)]!); return; }
+                      if (e.key === 'Escape') { e.preventDefault(); setCaret(0); return; }
+                    }
                     // Enter sends only if switched on (a phone keyboard's Enter is for new lines); Ctrl/Cmd+Enter always sends.
                     if (e.key === 'Enter' && !e.nativeEvent.isComposing && ((enterSends && !e.shiftKey) || e.ctrlKey || e.metaKey)) { e.preventDefault(); void submit().then(() => { const el = input.current; if (el) grow(el); }); }
                     if (e.key === 'Escape' && editing) { store.setEditing(null); setDraft(''); }

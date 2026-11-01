@@ -55,7 +55,7 @@ export function useAttachment(a: Attachment, roomId: string): { url: string | nu
   return { url: state.url, locked: sealed && !key, failed: state.failed };
 }
 
-const kind = (a: Attachment): 'image' | 'video' | 'audio' | 'file' => {
+export const kind = (a: Attachment): 'image' | 'video' | 'audio' | 'file' => {
   const m = (a.mime || '').toLowerCase();
   // A sealed picture keeps its real type in the envelope, so the list can still draw it as a picture.
   let real = m;
@@ -132,13 +132,14 @@ export function AudioPlayer({ src }: { src: string }) {
   );
 }
 
-export function Viewer({ url, name, onClose }: { url: string; name: string; onClose: () => void }) {
+export function Viewer({ url, name, onClose, video = false }: { url: string; name: string; onClose: () => void; video?: boolean }) {
   useEffect(() => {
+    // Escape closes only the viewer, not a sheet that is open underneath it.
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
   return (
     <div className="viewer" role="dialog" aria-modal="true" aria-label={name} onClick={onClose}>
@@ -146,7 +147,7 @@ export function Viewer({ url, name, onClose }: { url: string; name: string; onCl
         <IconButton icon="close" label="Close" onClick={onClose} />
         <a className="icon-btn" href={url} download={name} aria-label="Save" title="Save"><Icon name="download" /></a>
       </div>
-      <div className="stage"><img src={url} alt={name} onClick={(e) => e.stopPropagation()} /></div>
+      <div className="stage">{video ? <video src={url} controls autoPlay playsInline onClick={(e) => e.stopPropagation()} /> : <img src={url} alt={name} onClick={(e) => e.stopPropagation()} />}</div>
     </div>
   );
 }

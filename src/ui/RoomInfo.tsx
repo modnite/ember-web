@@ -3,6 +3,7 @@ import { roomPeer, roomTitle } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Room, User } from '../lib/types';
 import { Avatar, Confirm, Icon, IconButton, Sheet, Toggle } from './kit';
+import { SharedMedia } from './SharedMedia';
 
 /**
  * Chat details. For a group: its picture and name, who is in it, adding people (anyone in the group can add their own contacts), removing
@@ -17,6 +18,7 @@ export function RoomInfo({ room, onClose, onLeft }: { room: Room; onClose: () =>
   const [name, setName] = useState(room.name);
   const [adding, setAdding] = useState(false);
   const [leave, setLeave] = useState(false);
+  const [shared, setShared] = useState(false);
   const [removing, setRemoving] = useState<User | null>(null);
   const pic = useRef<HTMLInputElement>(null);
 
@@ -54,11 +56,13 @@ export function RoomInfo({ room, onClose, onLeft }: { room: Room; onClose: () =>
       ) : null}
 
       <div style={{ marginTop: 12 }}>
+        <button type="button" className="menu-item" style={{ padding: 0 }} onClick={() => setShared(true)}><Icon name="photo" />Shared pictures, files and voice</button>
         <Toggle icon="lock" title="End-to-end encrypted" sub={room.encrypted ? 'Only people in this chat can read it' : 'Switch on to seal new messages'} checked={room.encrypted} onChange={(v) => guard(useStore.getState().setupE2ee(true).then(() => import('../lib/api').then(({ api }) => api.setEncrypted(room.id, v))))} />
         <button type="button" className="menu-item" style={{ padding: 0 }} onClick={() => { guard(archiveRoom(room.id, !room.archived)); onClose(); }}><Icon name="archive" />{room.archived ? 'Move out of the archive' : 'Archive this chat'}</button>
         {isGroup ? <button type="button" className="menu-item danger" style={{ padding: 0 }} onClick={() => setLeave(true)}><Icon name="logout" />Leave group</button> : null}
       </div>
 
+      {shared ? <SharedMedia roomId={room.id} onClose={() => setShared(false)} /> : null}
       {adding ? <AddPeople room={room} onClose={() => setAdding(false)} onAdd={(ids) => { guard(addMembers(room.id, ids)); setAdding(false); }} contacts={contacts.contacts} users={users} meId={meId} /> : null}
       {removing ? <Confirm title={`Remove ${removing.displayName}?`} text="They stop receiving this group's messages." yes="Remove" danger onYes={() => guard(removeMember(room.id, removing.id))} onClose={() => setRemoving(null)} /> : null}
       {leave ? <Confirm title="Leave this group?" text="You stop receiving its messages. Someone else has to add you back." yes="Leave" danger onYes={() => { void leaveRoom(room.id).then(onLeft).catch((e: Error) => showToast(e.message)); }} onClose={() => setLeave(false)} /> : null}

@@ -1,19 +1,34 @@
 import { EmojiText } from './EmojiText';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { searchMessages, snippet, type Hit } from '../lib/search';
 import { listTime, messagePreview, roomPeer, roomTitle } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Message, Room } from '../lib/types';
-import { Avatar, Icon, IconButton } from './kit';
+import { Avatar, Confirm, Icon, IconButton } from './kit';
 import { NewChat } from './NewChat';
 
-const Row = memo(function Row({ room, meId, selected, typing, preview, onOpen }: { room: Room; meId: string; selected: boolean; typing: boolean; preview: string; onOpen: (id: string) => void }) {
+const Row = memo(function Row({ room, meId, selected, typing, preview, onOpen, onMenu }: { room: Room; meId: string; selected: boolean; typing: boolean; preview: string; onOpen: (id: string) => void; onMenu: (room: Room) => void }) {
+  // A long press (touch) or a right click opens the chat's menu, where it can be archived, as in the Android app.
+  const timer = useRef<number | null>(null);
+  const longFired = useRef(false);
+  const cancel = (): void => { if (timer.current !== null) window.clearTimeout(timer.current); timer.current = null; };
   const peer = roomPeer(room, meId);
   const last = room.lastMessage;
   const mine = last?.userId === meId;
   const unread = room.unread > 0;
   return (
-    <button type="button" className="row" aria-selected={selected} onClick={() => onOpen(room.id)}>
+    <button
+      type="button"
+      className="row"
+      aria-selected={selected}
+      onClick={() => { if (longFired.current) { longFired.current = false; return; } onOpen(room.id); }}
+      onContextMenu={(e) => { e.preventDefault(); cancel(); onMenu(room); }}
+      onPointerDown={(e) => { if (e.pointerType === 'mouse') return; longFired.current = false; cancel(); timer.current = window.setTimeout(() => { timer.current = null; longFired.current = true; navigator.vibrate?.(12); onMenu(room); }, 500); }}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      onPointerMove={(e) => { if (Math.abs(e.movementX) + Math.abs(e.movementY) > 6) cancel(); }}
+    >
       <Avatar user={peer} name={roomTitle(room, meId)} src={room.kind === 'group' ? room.avatar : undefined} color={room.kind === 'group' ? '#6b8e23' : undefined} dot />
       <span className="main">
         <span className="line1">
@@ -39,6 +54,9 @@ export function ChatList({ activeId, onOpen }: { activeId: string | null; onOpen
   const connected = useStore((s) => s.connected);
   const [q, setQ] = useState('');
   const [archived, setArchived] = useState(false);
+  const [menuRoom, setMenuRoom] = useState<Room | null>(null);
+  const archiveRoom = useStore((s) => s.archiveRoom);
+  const showToast = useStore((s) => s.showToast);
   const [creating, setCreating] = useState(false);
   const [hits, setHits] = useState<Hit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -84,7 +102,7 @@ export function ChatList({ activeId, onOpen }: { activeId: string | null; onOpen
             const isTyping = !!t && Object.entries(t).some(([uid, until]) => uid !== me.id && until > now);
             const dec = r.lastMessage ? text(r.lastMessage) : null;
             const body = dec ? (dec.locked ? 'Sealed message' : dec.failed ? 'Could not read this message' : dec.text) : '';
-            return <Row key={r.id} room={r} meId={me.id} selected={r.id === activeId} typing={isTyping} preview={messagePreview(r.lastMessage, body)} onOpen={onOpen} />;
+            return <Row key={r.id} room={r} meId={me.id} selected={r.id === activeId} typing={isTyping} preview={messagePreview(r.lastMessage, body)} onOpen={onOpen} onMenu={setMenuRoom} />;
           })}
           {!archived && archivedRooms.length > 0 ? (
             <button type="button" className="row" style={{ minHeight: 56 }} onClick={() => setArchived(true)}>
@@ -119,6 +137,15 @@ export function ChatList({ activeId, onOpen }: { activeId: string | null; onOpen
         <button type="button" className="fab" aria-label="New chat" onClick={() => setCreating(true)}><Icon name="add" /></button>
       </div>
       {creating ? <NewChat onClose={() => setCreating(false)} onOpen={(id) => { setCreating(false); onOpen(id); }} /> : null}
+      {menuRoom ? (
+        <Confirm
+          title={roomTitle(menuRoom, me.id)}
+          text={menuRoom.archived ? 'Move this chat back to your chats.' : 'Archived chats leave your list and stay quiet. Their unread count is kept, and they stay archived when new messages arrive.'}
+          yes={menuRoom.archived ? 'Unarchive' : 'Archive'}
+          onYes={() => { const r = menuRoom; setMenuRoom(null); void archiveRoom(r.id, !r.archived).catch((e: Error) => showToast(e.message || 'That did not work.')); }}
+          onClose={() => setMenuRoom(null)}
+        />
+      ) : null}
     </>
   );
 }
