@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VideoTrack } from 'livekit-client';
-import { canShareScreen, cancelLobby, connectCall, dismissError, flipCamera, leaveCall, setFit, setLobby, setMinimized, toggleCamera, toggleMic, toggleScreen, useCall, type CallPerson } from '../lib/call';
+import { canShareScreen, cancelLobby, connectCall, dismissError, flipCamera, leaveCall, setFit, setLobby, setMinimized, toggleCamera, toggleMic, toggleMuteForMe, toggleScreen, useCall, type CallPerson } from '../lib/call';
 import { roomPeer, roomTitle } from '../lib/format';
 import { realtime } from '../lib/realtime';
 import { usePrefs } from '../lib/prefs';
@@ -40,8 +40,9 @@ function Tile({ p, big }: { p: CallPerson; big?: boolean }) {
   return (
     <div className={`tile${p.speaking ? ' speaking' : ''}${mirror ? ' mirror' : ''}${fitted ? ' contain' : ''}`} data-big={big ? '1' : undefined}>
       {hasPicture ? <TrackVideo track={track} mirror={mirror} /> : <Avatar user={user} name={p.name} size={88} />}
+      {p.isLocal ? null : <button type="button" className={`tile-mute${p.mutedByMe ? ' on' : ''}`} aria-pressed={p.mutedByMe} aria-label={p.mutedByMe ? `Hear ${p.name} again` : `Mute ${p.name} for me`} title={p.mutedByMe ? 'Hear again' : 'Mute for me'} onClick={() => toggleMuteForMe(p.identity)}><Icon name={p.mutedByMe ? 'volumeOff' : 'volume'} /></button>}
       {hasPicture ? <button type="button" className="tile-fit" aria-label={fitted ? `Fill the tile with ${p.isLocal ? 'your picture' : p.name}` : `Fit ${p.isLocal ? 'your picture' : p.name} in the tile`} title={fitted ? 'Fill' : 'Fit'} onClick={() => setOwn(!fitted)}><Icon name={fitted ? 'fullscreen' : 'fullscreenExit'} /></button> : null}
-      <span className="label">{p.isLocal ? 'You' : p.name}{!p.micOn ? <Icon name="micOff" className="mic-ico" /> : null}</span>
+      <span className="label">{p.isLocal ? 'You' : p.name}{p.mutedByMe ? <Icon name="volumeOff" className="mic-ico" /> : null}{!p.micOn ? <Icon name="micOff" className="mic-ico" /> : null}</span>
     </div>
   );
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.0
+
+- Calls: every other person's tile has a Mute for me button (top left). It silences them for you only and the others still hear them, as in the Android app. Press it again to hear them.
+
 ## 0.13.0
 
 - Servers with mirrors: when the server this page came from stops answering, the page moves to a mirror that has taken over, keeping you signed in, and moves back once the main server is serving again. It only moves to a server that also serves this web app.

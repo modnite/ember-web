@@ -19,6 +19,8 @@ export interface CallPerson {
   micOn: boolean;
   camOn: boolean;
   speaking: boolean;
+  /** Silenced for this person only: the others still hear them. */
+  mutedByMe: boolean;
   camera?: VideoTrack;
   screen?: VideoTrack;
 }
@@ -94,6 +96,15 @@ export function cancelLobby(): void {
   set({ phase: 'idle', roomId: null });
 }
 
+/** People silenced for this person on this device (not told to anyone). Cleared when the call ends. */
+const mutedForMe = new Set<string>();
+
+export function toggleMuteForMe(identity: string): void {
+  if (mutedForMe.has(identity)) mutedForMe.delete(identity);
+  else mutedForMe.add(identity);
+  refresh();
+}
+
 function personOf(p: Participant, local: boolean): CallPerson {
   const userId = p.identity.split(':')[0] ?? p.identity;
   const user = useStore.getState().users[userId];
@@ -107,6 +118,7 @@ function personOf(p: Participant, local: boolean): CallPerson {
     micOn: p.isMicrophoneEnabled,
     camOn: !!cam && !cam.isMuted && !!cam.track,
     speaking: p.isSpeaking,
+    mutedByMe: !local && mutedForMe.has(p.identity),
     camera: cam?.track as VideoTrack | undefined,
     screen: scr?.track as VideoTrack | undefined,
   };
@@ -114,6 +126,7 @@ function personOf(p: Participant, local: boolean): CallPerson {
 
 function refresh(): void {
   if (!room) return;
+  for (const p of room.remoteParticipants.values()) p.setVolume(mutedForMe.has(p.identity) ? 0 : 1);
   const people = [personOf(room.localParticipant, true), ...[...room.remoteParticipants.values()].map((p) => personOf(p, false))];
   const localCam = room.localParticipant.getTrackPublication(Track.Source.Camera);
   set({
@@ -237,6 +250,7 @@ export async function connectCall(): Promise<void> {
 }
 
 export async function leaveCall(playEnd = true): Promise<void> {
+  mutedForMe.clear();
   const { roomId } = useCall.getState();
   if (roomId) realtime.send({ t: 'call.leave', roomId });
   battery?.stop();
