@@ -549,11 +549,15 @@ export const useStore = create<State>((set, get) => {
     },
 
     sendNudge(roomId) {
+      // As often as you like, as in the Android app: the chat shakes, the phone buzzes and the sound plays every time. Only a double tap
+      // inside a quarter of a second counts once.
       const now = Date.now();
-      if (now - lastNudge < 3000) return;
+      if (now - lastNudge < 250) return;
       lastNudge = now;
       realtime.send({ t: 'nudge', roomId });
-      set((st) => ({ events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: 'You sent a nudge', at: now }].slice(-30) } }));
+      playSound('nudge');
+      navigator.vibrate?.([120, 60, 120]);
+      set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: now }, events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: 'You sent a nudge', at: now }].slice(-30) } }));
     },
 
     async retry(roomId, tmpId) {

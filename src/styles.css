@@ -177,9 +177,13 @@ a { color: var(--primary); }
 .bubble .sender { font-size: 13px; font-weight: 700; margin-bottom: 1px; }
 .bubble .text { white-space: pre-wrap; -webkit-user-select: text; user-select: text; }
 .bubble .text a { word-break: break-all; }
-.bubble .meta { display: flex; align-items: center; gap: 4px; justify-content: flex-end; font-size: 11.5px; color: var(--tick); margin-top: 1px; float: right; margin-left: 10px; position: relative; top: 4px; }
-.bubble .meta svg { width: 16px; height: 16px; fill: currentColor; }
-.bubble .meta .read { color: var(--tick-read); }
+.bubble .meta { display: flex; align-items: center; gap: 4px; justify-content: flex-end; font-size: 11px; color: color-mix(in srgb, currentColor 60%, transparent); margin-top: 1px; float: right; margin-left: 10px; position: relative; top: 4px; }
+.bubble .meta svg { width: 16px; height: 16px; fill: currentColor; color: var(--tick); }
+.bubble .meta svg.read { color: var(--tick-read); }
+.bubble.media-only { position: relative; }
+.bubble.media-only .meta { position: absolute; right: 9px; bottom: 9px; top: auto; margin: 0; float: none; padding: 2px 6px; border-radius: 10px; background: rgba(0, 0, 0, 0.45); color: #fff; padding-right: 6px; }
+.bubble.media-only .meta svg { color: rgba(255, 255, 255, 0.85); }
+.bubble.media-only .meta svg.read { color: var(--tick-read); }
 .bubble.deleted .text { font-style: italic; color: var(--on-surface-variant); }
 .bubble.sticker { background: none; box-shadow: none; padding: 0; }
 .bubble.pending { opacity: 0.7; }
@@ -465,8 +469,9 @@ input[type='range']::-moz-range-thumb { width: 22px; height: 22px; border-radius
 .sig-name small { color: var(--on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mp-grid.stickers .mp-tile .sig-img img { padding: 4px; }
 
-/* Settings sit in two columns when the screen is wide, so sideways on a phone is not one long strip. */
-@media (min-width: 700px) and (orientation: landscape) {
+/* Settings sit in two columns when the settings pane itself is wide, so sideways on a phone is not one long strip. A narrow pane beside the chat stays one column. */
+.page { container-type: inline-size; }
+@container (min-width: 640px) {
   .settings-cols { columns: 2; column-gap: 8px; }
   .settings-cols > section { break-inside: avoid; }
   .settings-cols > section:first-child .group-title { padding-top: 6px; }

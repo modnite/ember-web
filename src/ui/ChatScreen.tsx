@@ -85,6 +85,8 @@ const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName
   // Pictures, videos and stickers have a round forward button beside them, on the side facing the middle of the screen.
   const quick = !deleted && !selecting && m.attachments.length > 0 && m.attachments.every((a) => /^(image|video)\//.test(a.mime) || isSticker(a));
   const preview = usePreview(text.text, !room.encrypted && !deleted);
+  // A picture or video sent alone carries its time on the picture, in a small dark pill, as in the Android app.
+  const mediaOnly = !deleted && !text.locked && !text.text && !m.replyTo && !m.forwarded && !(showName && !mine) && m.attachments.length > 0 && m.attachments.every((x) => /^(image|video)\//.test(x.mime) && !isSticker(x));
   const sender = m.user as User | undefined;
 
   const cancel = (): void => {
@@ -150,7 +152,7 @@ const Bubble = memo(function Bubble({ m, room, meId, mine, first, last, showName
         {!mine && room.kind === 'group' ? (last ? <Avatar user={sender} name={sender?.displayName ?? '?'} size={30} /> : <span style={{ width: 30, flex: 'none' }} />) : null}
         {mine && quick ? <button type="button" className="quick-fwd" aria-label="Forward" title="Forward" onClick={() => onQuickForward(m)}><Icon name="forward" /></button> : null}
         <div
-          className={`bubble${deleted ? ' deleted' : ''}${sticker ? ' sticker' : ''}${m.attachments.length && !deleted ? ' has-media' : ''}${status === 'sending' ? ' pending' : ''}${status === 'failed' ? ' failed' : ''}`}
+          className={`bubble${deleted ? ' deleted' : ''}${sticker ? ' sticker' : ''}${m.attachments.length && !deleted ? ' has-media' : ''}${mediaOnly ? ' media-only' : ''}${status === 'sending' ? ' pending' : ''}${status === 'failed' ? ' failed' : ''}`}
           role="group"
           aria-label={`${mine ? 'You' : sender?.displayName ?? 'Someone'}, ${clock(m.createdAt)}`}
           tabIndex={0}
@@ -255,9 +257,11 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const [shaking, setShaking] = useState(false);
   useEffect(() => {
     if (!nudgedAt || Date.now() - nudgedAt > 1500) return;
-    setShaking(true);
+    // Off and on again, so a second nudge shakes the chat again instead of joining the first shake.
+    setShaking(false);
+    const raf = window.requestAnimationFrame(() => setShaking(true));
     const t = window.setTimeout(() => setShaking(false), 800);
-    return () => window.clearTimeout(t);
+    return () => { window.cancelAnimationFrame(raf); window.clearTimeout(t); };
   }, [nudgedAt]);
   const [moreReact, setMoreReact] = useState<Message | null>(null);
   const [draft, setDraft] = useState('');

@@ -117,7 +117,7 @@ test('appearance: black theme, accent colour and wallpaper apply and stay', asyn
   await page.reload();
   await expect(root).toHaveAttribute('data-black', '1');
   await expect(page.getByRole('button', { name: /^Accent colour/ })).toContainText('Blue');
-  await page.getByRole('button', { name: /^Chats$/ }).click();
+  await page.getByRole('button', { name: /(^|\s)Chats$/ }).click();
   await page.getByRole('button', { name: /Weekend plans/ }).click();
   await expect.poll(() => page.locator('.messages').evaluate((el) => getComputedStyle(el).backgroundImage)).toContain('rgba(0, 0, 0, 0.3)');
   await expect.poll(() => page.locator('.messages').evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgb(0, 0, 0)');
@@ -142,7 +142,7 @@ test('photos go out as Standard (1600) or HD (up to 4096)', async ({ page }) => 
   await expect.poll(widthOfLast, { timeout: 30_000 }).toBe(1600);
   await page.goto('/#/settings');
   await page.getByText('Send photos in HD').click();
-  await page.getByRole('button', { name: /^Chats$/ }).click();
+  await page.getByRole('button', { name: /(^|\s)Chats$/ }).click();
   await page.getByRole('button', { name: /Weekend plans/ }).click();
   await send();
   await expect.poll(widthOfLast, { timeout: 30_000 }).toBe(3000);
@@ -157,7 +157,12 @@ test('nudge: the button sends one, and a nudge from someone else shakes the chat
   } else {
     await page.getByRole('button', { name: 'Nudge' }).click();
   }
-  await expect(page.getByText('You sent a nudge')).toBeVisible();
+  // Your own nudge answers at once: the line appears and your chat shakes.
+  await expect(page.getByText('You sent a nudge')).toBeVisible({ timeout: 800 });
+  await expect(page.locator('.chat')).toHaveClass(/shake/, { timeout: 800 });
+  // Another tap straight away counts too (no waiting out a cool-down).
+  await page.getByRole('button', { name: 'Nudge' }).first().click();
+  await expect(page.getByText('You sent a nudge')).toHaveCount(2, { timeout: 800 });
   // A message sent after the nudge arrives below it, not above it.
   const tag = `after the nudge ${Date.now()}`;
   await page.getByRole('textbox', { name: 'Message' }).fill(tag);
@@ -222,10 +227,10 @@ test('message interactions: click for actions, reply from the sheet, select seve
 
   // A plain click opens what can be done with the message.
   await second.locator('.text').click();
-  await expect(page.getByRole('button', { name: 'Reply' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reply', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'More reactions' })).toBeVisible();
   await page.screenshot({ path: `test-results/${info.project.name}-message-menu.png` });
-  await page.getByRole('button', { name: 'Reply' }).click();
+  await page.getByRole('button', { name: 'Reply', exact: true }).click();
   await expect(page.locator('.reply-bar')).toContainText(`second test line ${tag}`);
   await page.getByRole('button', { name: 'Cancel reply' }).click();
 

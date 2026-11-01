@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.3
+
+* Nudge answers at once and every time, as in the Android app: your own chat shakes, the phone buzzes and the sound plays when you nudge, with no cool-down that made taps seem to do nothing. The sound is the real nudge recording the Hearth web app and the Android app use, not a beep.
+* Message times take the colour of the message text at 60 percent, ticks keep their own colours, and a picture or video sent alone shows its time in a small dark pill on the picture, all as in the Android app.
+
 ## 0.8.2
 
 * Nudge lines (and other room notices) sit among the messages by time, as in the Android app. New messages arrive below them instead of above.

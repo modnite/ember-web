@@ -68,9 +68,25 @@ export function previewSound(slot: SoundSlot): void {
   else playBuiltIn(slot === 'message' ? 'message' : 'ring');
 }
 
+/** The nudge sound: the one recording the Hearth web app and the Android app play. Never more than three at once, and not closer than 0.6 seconds. */
+const nudgePlayers = new Set<HTMLAudioElement>();
+let lastNudgeAt = 0;
+function playNudgeFile(): void {
+  const now = Date.now();
+  if (now - lastNudgeAt < 600 || nudgePlayers.size >= 3) return;
+  lastNudgeAt = now;
+  const a = new Audio('/sounds/nudge.mp3');
+  nudgePlayers.add(a);
+  const done = (): void => { nudgePlayers.delete(a); };
+  a.addEventListener('ended', done);
+  a.addEventListener('error', done);
+  a.play().catch(() => { done(); playBuiltIn('nudge'); });
+}
+
 export function playSound(kind: SoundKind): void {
   const prefs = usePrefs.getState();
   if (!prefs.sounds) return;
+  if (kind === 'nudge') { playNudgeFile(); return; }
   const slot = slotOf(kind);
   if (slot) {
     const choice = slot === 'message' ? prefs.messageSound : prefs.callSound;
