@@ -3,7 +3,8 @@ import { api, ApiError, onAuthLost } from './api';
 import { decryptBody } from './decrypt';
 import { encodeEnvelope, encryptWithRoomKey, roomKeyFromGroup, sealBytes } from './crypto';
 import { ensureGroupKey, forgetDevice, loadOrCreateDevice, type GroupState } from './group';
-import { lastActivity } from './format';
+import { desktopAttention, desktopNotify, desktopUnread } from './desktop';
+import { lastActivity, messagePreview } from './format';
 import { realtime, type Frame } from './realtime';
 import { playSound } from './sounds';
 import { noteReaction } from './emojiUse';
@@ -145,6 +146,7 @@ export const useStore = create<State>((set, get) => {
       /* no badge on this browser */
     }
     document.title = n > 0 ? `(${n}) Ember` : 'Ember';
+    desktopUnread(n);
   }
 
   function handleFrame(f: Frame): void {
@@ -171,7 +173,14 @@ export const useStore = create<State>((set, get) => {
         setBadge(get().rooms);
         if (!mine) {
           if (viewing) void api.markRead(m.roomId).catch(() => undefined);
-          else if (usePrefs.getState().sounds) playSound('message');
+          else {
+            if (usePrefs.getState().sounds) playSound('message');
+            // The desktop app: a system notice and a flashing taskbar button (the app itself stays quiet when its window is the one in use).
+            const dec = get().text(m);
+            const body = dec.locked ? 'Sealed message' : dec.failed ? 'Could not read this message' : dec.text;
+            desktopNotify(m.user?.displayName ?? 'Ember', messagePreview(m, body));
+            desktopAttention(false);
+          }
         }
         break;
       }
@@ -250,6 +259,8 @@ export const useStore = create<State>((set, get) => {
         const name = get().users[userId]?.displayName ?? 'Someone';
         set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: Date.now() }, events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: `${name} sent a nudge`, at: Date.now() }].slice(-30) } }));
         playSound('nudge');
+        desktopNotify(`${name} sent a nudge`, 'Open Ember to answer.');
+        desktopAttention(true);
         navigator.vibrate?.([120, 60, 120, 60, 200]);
         break;
       }
@@ -271,6 +282,8 @@ export const useStore = create<State>((set, get) => {
         break;
       }
       case 'call.ring':
+        desktopNotify(`${String(f.fromName)} is calling`, 'Open Ember to answer.');
+        desktopAttention(true);
         set({ ring: { roomId: String(f.roomId), fromUserId: String(f.fromUserId), fromName: String(f.fromName), startedAt: Number(f.startedAt) } });
         break;
       case 'call.ring.stop':

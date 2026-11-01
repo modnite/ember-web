@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0
+
+* Ready for the Ember desktop app: inside it, new messages, nudges and calls show system notices and flash the taskbar, the unread count goes to the tray icon, and Settings has a Desktop alerts switch in place of the browser push row. In a browser nothing changes.
+* The switches have the same measurements as the Android ones: the knob is centred when off, and has equal gaps at the top, bottom and right when on.
+
 ## 0.9.0
 
 * Mentions, as in the Android app: typing @ in a group lists its members, narrows as you type, and puts in the name when you pick one. An @ inside an email address does not open the list. A name after @ in a message is highlighted, and yours stands out more. Arrow keys, Enter, Tab and Escape work in the list.

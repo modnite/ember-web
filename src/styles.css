@@ -285,9 +285,11 @@ svg:not([width]):not([class]) { width: 1.25em; height: 1.25em; fill: currentColo
 .setting .main { flex: 1; min-width: 0; }
 .setting .main small { display: block; color: var(--on-surface-variant); font-size: 13.5px; }
 .switch { appearance: none; -webkit-appearance: none; width: 52px; height: 32px; border-radius: 16px; background: var(--container-highest); border: 2px solid var(--outline); position: relative; flex: none; cursor: pointer; transition: background 0.15s; }
-.switch::after { content: ''; position: absolute; top: 4px; left: 5px; width: 16px; height: 16px; border-radius: 50%; background: var(--outline); transition: all 0.15s; }
+/* The same measurements as the Android switch: a 52 x 32 track with a 2px edge (48 x 28 inside). Off: a 16px knob centred, 8px in from the track's edge.
+   On: a 24px knob, 4px from the top, bottom and right edges. The offsets below are inside the edge. */
+.switch::after { content: ''; position: absolute; top: 6px; left: 6px; width: 16px; height: 16px; border-radius: 50%; background: var(--outline); transition: all 0.15s; }
 .switch:checked { background: var(--primary); border-color: var(--primary); }
-.switch:checked::after { left: 25px; top: 2px; width: 24px; height: 24px; background: var(--on-primary); }
+.switch:checked::after { left: 22px; top: 2px; width: 24px; height: 24px; background: var(--on-primary); }
 .seg { display: inline-flex; border: 1px solid var(--outline); border-radius: 20px; overflow: hidden; }
 .seg button { padding: 0 14px; min-height: 38px; font-size: 14px; }
 .seg button[aria-pressed='true'] { background: var(--primary-container); color: var(--on-primary-container); font-weight: 600; }

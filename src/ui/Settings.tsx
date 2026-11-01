@@ -6,6 +6,7 @@ import { useStore } from '../lib/store';
 import type { TwoStepStatus, User } from '../lib/types';
 import { isIOS, isStandalone } from '../lib/viewport';
 import { canInstall, promptInstall } from '../lib/install';
+import { isDesktop } from '../lib/desktop';
 import { AppearanceRows } from './Appearance';
 import { SoundRows } from './SoundSettings';
 import { Avatar, Icon, Sheet, Toggle, type IconName } from './kit';
@@ -42,6 +43,7 @@ export function Settings() {
   const picker = useRef<HTMLInputElement>(null);
   const ios = isIOS();
   const installed = isStandalone();
+  const desktop = isDesktop();
 
   useEffect(() => { void pushState(installed, ios).then(setPush); }, [installed, ios]);
 
@@ -77,7 +79,10 @@ export function Settings() {
 
         <div className="settings-cols">
         <Group title="Notifications and sounds">
-          <Toggle icon="bell" title="Message and call alerts" sub={PUSH_TEXT[push]} checked={push === 'on'} disabled={push !== 'on' && push !== 'off'} onChange={(v) => void togglePush(v)} />
+          {desktop
+            ? <Toggle icon="bell" title="Desktop alerts" sub="New messages, nudges and calls, and a flashing taskbar button" checked={prefs.desktopAlerts} onChange={(v) => set('desktopAlerts', v)} />
+            : <Toggle icon="bell" title="Message and call alerts" sub={PUSH_TEXT[push]} checked={push === 'on'} disabled={push !== 'on' && push !== 'off'} onChange={(v) => void togglePush(v)} />
+          }
           <Toggle icon="music" title="Sounds in chats and calls" sub="Messages arriving, sending, ringing" checked={prefs.sounds} onChange={(v) => set('sounds', v)} />
           <SoundRows />
           {push === 'on' ? <Action icon="bell" title="Send a test notification" onClick={() => void api.pushTest().then((r) => showToast(r.sent ? 'Sent. It should arrive in a moment.' : r.error ?? 'Nothing was sent.')).catch((e: Error) => showToast(e.message))} /> : null}

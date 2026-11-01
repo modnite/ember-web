@@ -25,6 +25,8 @@ export interface Prefs {
   sendHd: boolean;
   /** A Nudge button in the top bar of every chat. Off puts Nudge in the attach menu. */
   nudgeButton: boolean;
+  /** The desktop app: system notices for new messages, nudges and calls, and a flashing taskbar button. */
+  desktopAlerts: boolean;
   /** The sound for a new message and for a ring: Ember's own, none, or a file you chose. */
   messageSound: 'ember' | 'none' | 'file';
   callSound: 'ember' | 'none' | 'file';
@@ -38,7 +40,7 @@ export interface Prefs {
 }
 
 const KEY = 'ember.prefs';
-const DEFAULTS: Prefs = { theme: 'system', accent: '', wallpaper: 'default', doodles: true, wallpaperDim: 0, wallpaperPhoto: 0, enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, sendHd: false, nudgeButton: true, messageSound: 'ember', callSound: 'ember', micId: '', camId: '', speakerId: '', giphyKey: '', imgurId: '' };
+const DEFAULTS: Prefs = { theme: 'system', accent: '', wallpaper: 'default', doodles: true, wallpaperDim: 0, wallpaperPhoto: 0, enterSends: false, sounds: true, spellcheck: true, mirrorSelf: true, flipFront: 'auto', crashReports: true, sendHd: false, nudgeButton: true, desktopAlerts: true, messageSound: 'ember', callSound: 'ember', micId: '', camId: '', speakerId: '', giphyKey: '', imgurId: '' };
 
 /** The first wallpaper choices (doodles, gradient, dots, plain) become a flat colour with the doodles switched on or off. */
 function migrate(saved: Record<string, unknown>): Record<string, unknown> {
