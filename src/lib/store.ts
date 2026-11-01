@@ -3,6 +3,7 @@ import { api, ApiError, onAuthLost } from './api';
 import { decryptBody } from './decrypt';
 import { encodeEnvelope, encryptWithRoomKey, roomKeyFromGroup, sealBytes } from './crypto';
 import { ensureGroupKey, forgetDevice, loadOrCreateDevice, type GroupState } from './group';
+import { adoptFromHash, noteGroup, refreshPortable, startFailover } from './failover';
 import { desktopAttention, desktopNotify, desktopShake, desktopUnread, isSoloWindow } from './desktop';
 import { lastActivity, messagePreview } from './format';
 import { realtime, type Frame } from './realtime';
@@ -386,11 +387,15 @@ export const useStore = create<State>((set, get) => {
       realtime.onState((connected) => set({ connected }));
       window.addEventListener('online', () => set({ online: true }));
       window.addEventListener('offline', () => set({ online: false }));
+      await adoptFromHash();
       const [info, authConfig] = await Promise.all([api.info().catch(() => null), api.authConfig().catch(() => null)]);
       set({ info, authConfig });
+      noteGroup(info);
+      startFailover();
       try {
         const { user } = await api.me();
         set({ me: user, boot: 'ready' });
+        void refreshPortable();
         await afterSignIn();
       } catch {
         set({ boot: 'signedOut' });
@@ -712,6 +717,7 @@ export const useStore = create<State>((set, get) => {
   }
 
   async function afterSignIn(): Promise<void> {
+    void refreshPortable();
     realtime.start();
     await Promise.all([get().loadRooms(), get().loadContacts()]);
     // Join the encryption key if this account already has one (another device or phone hands it over).

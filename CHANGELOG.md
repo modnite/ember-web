@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0
+
+- Servers with mirrors: when the server this page came from stops answering, the page moves to a mirror that has taken over, keeping you signed in, and moves back once the main server is serving again. It only moves to a server that also serves this web app.
+
 ## 0.12.1
 
 - The New messages button floats over the list again. It sat inside the scrolling list and scrolled away with it, so there was no way back down. A round down button now shows whenever you are scrolled up, and New messages shows when something new arrived.

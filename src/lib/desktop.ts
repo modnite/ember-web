@@ -56,6 +56,11 @@ export function desktopShake(roomId: string): void {
   ask('shake_chat', { roomId });
 }
 
+/** The servers of the group this one belongs to, so the shell lets the window move between them. */
+export function desktopAllowServers(urls: string[]): void {
+  ask('allow_servers', { urls });
+}
+
 /** Chats stop having windows of their own: closes them all and says which chats they showed (the one in use first). */
 export async function desktopCloseChatWindows(): Promise<string[]> {
   try {

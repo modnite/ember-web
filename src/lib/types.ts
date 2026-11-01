@@ -133,6 +133,8 @@ export interface ServerInfo {
   name?: string;
   motd?: string;
   registration?: string;
+  /** Present when this server has mirrors: who is in the group and whether this one is serving people. */
+  cluster?: { epoch: number; writable: boolean; nodes: Array<{ url: string; rank: number }> };
   features?: { calls?: boolean; push?: boolean; backups?: boolean; browser?: boolean; twoStep?: boolean; friends?: boolean; crashReports?: boolean };
 }
 
