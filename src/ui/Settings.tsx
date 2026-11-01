@@ -6,7 +6,7 @@ import { useStore } from '../lib/store';
 import type { TwoStepStatus, User } from '../lib/types';
 import { isIOS, isStandalone } from '../lib/viewport';
 import { canInstall, promptInstall } from '../lib/install';
-import { isDesktop } from '../lib/desktop';
+import { desktopChangeServer, isDesktop } from '../lib/desktop';
 import { AppearanceRows } from './Appearance';
 import { SoundRows } from './SoundSettings';
 import { Avatar, Icon, Sheet, Toggle, type IconName } from './kit';
@@ -124,6 +124,7 @@ export function Settings() {
         </Group>
 
         <Group title="About">
+          {desktop ? <Action icon="info" title="Server" sub={`${location.host}. Tap to use another server.`} onClick={desktopChangeServer} /> : null}
           <Toggle icon="info" title="Send crash reports" sub="To your Hearth server, so a fix can be made" checked={prefs.crashReports} onChange={(v) => set('crashReports', v)} />
           <div className="setting"><Icon name="info" className="ico" /><span className="main">Ember web {__APP_VERSION__}<small>{info?.name ?? 'Hearth server'}{info?.version ? ` ${info.version}` : ''} · {location.host}</small></span></div>
           <Action icon="logout" title="Sign out" danger onClick={() => void signOut()} />

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.1
+
+* In the Ember desktop app, Settings has a Server row and the sign-in page has a Change server link, so the server can be changed without finding the tray menu. Nothing changes in a browser.
+
 ## 0.10.0
 
 * Ready for the Ember desktop app: inside it, new messages, nudges and calls show system notices and flash the taskbar, the unread count goes to the tray icon, and Settings has a Desktop alerts switch in place of the browser push row. In a browser nothing changes.

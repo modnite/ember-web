@@ -33,6 +33,11 @@ export function desktopAttention(critical: boolean): void {
   ask('attention', { critical });
 }
 
+/** Open the shell's page for choosing another server. */
+export function desktopChangeServer(): void {
+  ask('open_server_picker', {});
+}
+
 /** How many unread messages there are: shown on the tray icon. */
 export function desktopUnread(count: number): void {
   ask('set_unread', { count });

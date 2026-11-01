@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../lib/api';
 import { useStore } from '../lib/store';
+import { desktopChangeServer, isDesktop } from '../lib/desktop';
 
 /**
  * Sign in or create an account, the way the Android app does it: one screen, an account created from the same place, an invite code only when
@@ -86,6 +87,7 @@ export function Login() {
             <button type="button" className="btn text" onClick={() => { setMode(mode === 'in' ? 'up' : 'in'); setError(''); setNeedsCode(false); }}>
               {mode === 'in' ? 'Create an account' : 'I already have an account'}
             </button>
+            {isDesktop() ? <button type="button" className="btn text" onClick={desktopChangeServer}>Change server</button> : null}
           </div>
         </form>
       </div>
