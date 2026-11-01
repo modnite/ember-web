@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
 import { usePrefs } from '../lib/prefs';
+import { desktopCloseWindow, desktopOpenChat, desktopSetTitle, isDesktop, isSoloWindow } from '../lib/desktop';
+import { roomTitle } from '../lib/format';
 import { applyLook } from '../lib/theme';
 import { onUpdateReady, reloadForUpdate } from '../lib/update';
 import { CallScreen, RingCard } from './Call';
@@ -72,11 +74,37 @@ export function App() {
   useEffect(() => { if (!route.chatId) setLast(route.tab); }, [route.chatId, route.tab]);
 
   const go = useCallback((h: string) => { if (location.hash === h) setHash(h); else location.hash = h; }, []);
-  const openChat = useCallback((id: string) => go(`#/chat/${encodeURIComponent(id)}`), [go]);
+  // The desktop app opens each chat in a window of its own unless that is switched off in Settings.
+  const openChatWindow = useCallback((id: string) => {
+    const st = useStore.getState();
+    const room = st.rooms.find((r) => r.id === id);
+    desktopOpenChat(id, room && st.me ? roomTitle(room, st.me.id) : 'Ember');
+  }, []);
+  const openChat = useCallback((id: string) => {
+    if (isDesktop() && !isSoloWindow() && usePrefs.getState().desktopChatWindows) openChatWindow(id);
+    else go(`#/chat/${encodeURIComponent(id)}`);
+  }, [go, openChatWindow]);
+  const solo = isSoloWindow();
+  const soloRoom = useStore((s) => (solo && route.chatId ? s.rooms.find((r) => r.id === route.chatId) : undefined));
+  const myId = useStore((s) => s.me?.id);
+  useEffect(() => { if (soloRoom && myId) desktopSetTitle(roomTitle(soloRoom, myId)); }, [soloRoom, myId]);
   const back = useCallback(() => go(`#/${last === 'chats' ? '' : last}`), [go, last]);
 
   if (boot === 'loading') return <div className="app" aria-busy="true"><div className="empty-main"><img src="/icons/icon-192.png" alt="" />Ember</div></div>;
   if (boot === 'signedOut') return <><Login />{toast ? <div className="toast" role="status">{toast.text}</div> : null}</>;
+
+  // A chat window of the desktop app: just the one chat, no list and no tabs.
+  if (solo && route.chatId) {
+    return (
+      <div className="app solo" data-screen="chat">
+        <main className="pane-main">
+          <ChatScreen key={route.chatId} roomId={route.chatId} onBack={desktopCloseWindow} onClose={desktopCloseWindow} wide />
+        </main>
+        <CallScreen />
+        {toast ? <div className="toast" role="status" aria-live="polite">{toast.text}</div> : null}
+      </div>
+    );
+  }
 
   const unread = rooms.filter((r) => !r.archived).reduce((n, r) => n + r.unread, 0);
   const chatOpen = !!route.chatId;
@@ -96,7 +124,7 @@ export function App() {
     <div className="app" data-screen={screen}>
       <div className="pane-list">
         {!online ? <div className="top-note" role="status">You are offline. Messages wait until you are back.</div> : null}
-        {route.tab === 'chats' ? <ChatList activeId={route.chatId} onOpen={openChat} /> : route.tab === 'people' ? <People onOpenChat={openChat} /> : <Settings />}
+        {route.tab === 'chats' ? <ChatList activeId={route.chatId} onOpen={openChat} onOpenWindow={isDesktop() ? openChatWindow : undefined} /> : route.tab === 'people' ? <People onOpenChat={openChat} /> : <Settings />}
         {nav}
       </div>
       <main className="pane-main">

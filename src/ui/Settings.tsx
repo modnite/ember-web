@@ -80,7 +80,7 @@ export function Settings() {
         <div className="settings-cols">
         <Group title="Notifications and sounds">
           {desktop
-            ? <Toggle icon="bell" title="Desktop alerts" sub="New messages, nudges and calls, and a flashing taskbar button" checked={prefs.desktopAlerts} onChange={(v) => set('desktopAlerts', v)} />
+            ? <><Toggle icon="bell" title="Desktop alerts" sub="New messages, nudges and calls, and a flashing taskbar button" checked={prefs.desktopAlerts} onChange={(v) => set('desktopAlerts', v)} /><Toggle icon="chat" title="Chats in their own windows" sub="Off keeps everything in the one window" checked={prefs.desktopChatWindows} onChange={(v) => set('desktopChatWindows', v)} /></>
             : <Toggle icon="bell" title="Message and call alerts" sub={PUSH_TEXT[push]} checked={push === 'on'} disabled={push !== 'on' && push !== 'off'} onChange={(v) => void togglePush(v)} />
           }
           <Toggle icon="music" title="Sounds in chats and calls" sub="Messages arriving, sending, ringing" checked={prefs.sounds} onChange={(v) => set('sounds', v)} />

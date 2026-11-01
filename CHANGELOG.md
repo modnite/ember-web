@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.0
+
+* In the Ember desktop app each chat now opens in a window of its own, so each chat has its own taskbar button. A switch in Settings, Chats in their own windows, turns it off for the one-window look. Right click a chat in the list for Open in its own window. A chat window shows only that chat, takes its name from the chat, and leaves sounds, notices and the unread count to the main window. Nothing changes in a browser.
+
 ## 0.10.1
 
 * In the Ember desktop app, Settings has a Server row and the sign-in page has a Change server link, so the server can be changed without finding the tray menu. Nothing changes in a browser.

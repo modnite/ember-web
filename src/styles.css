@@ -504,3 +504,6 @@ input[type='range']::-moz-range-thumb { width: 22px; height: 22px; border-radius
 
 /* A long press on a chat opens its menu; the phone's own text selection and callout stay out of the way. */
 .list-wrap .row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+/* A chat window of the desktop app: only the chat, filling the window */
+.app.solo .pane-main { flex: 1; animation: none; }

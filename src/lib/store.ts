@@ -3,7 +3,7 @@ import { api, ApiError, onAuthLost } from './api';
 import { decryptBody } from './decrypt';
 import { encodeEnvelope, encryptWithRoomKey, roomKeyFromGroup, sealBytes } from './crypto';
 import { ensureGroupKey, forgetDevice, loadOrCreateDevice, type GroupState } from './group';
-import { desktopAttention, desktopNotify, desktopUnread } from './desktop';
+import { desktopAttention, desktopNotify, desktopUnread, isSoloWindow } from './desktop';
 import { lastActivity, messagePreview } from './format';
 import { realtime, type Frame } from './realtime';
 import { playSound } from './sounds';
@@ -174,7 +174,8 @@ export const useStore = create<State>((set, get) => {
         if (!mine) {
           if (viewing) void api.markRead(m.roomId).catch(() => undefined);
           else {
-            if (usePrefs.getState().sounds) playSound('message');
+            // A chat window of the desktop app stays quiet for what arrives: the main window already plays it.
+            if (usePrefs.getState().sounds && !isSoloWindow()) playSound('message');
             // The desktop app: a system notice and a flashing taskbar button (the app itself stays quiet when its window is the one in use).
             const dec = get().text(m);
             const body = dec.locked ? 'Sealed message' : dec.failed ? 'Could not read this message' : dec.text;
@@ -258,7 +259,7 @@ export const useStore = create<State>((set, get) => {
         if (userId === s.me?.id) break;
         const name = get().users[userId]?.displayName ?? 'Someone';
         set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: Date.now() }, events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: `${name} sent a nudge`, at: Date.now() }].slice(-30) } }));
-        playSound('nudge');
+        if (!isSoloWindow()) playSound('nudge');
         desktopNotify(`${name} sent a nudge`, 'Open Ember to answer.');
         desktopAttention(true);
         navigator.vibrate?.([120, 60, 120, 60, 200]);

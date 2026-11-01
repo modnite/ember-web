@@ -357,3 +357,44 @@ test('archive from the chat list: right click, archive, find it under Archived, 
   await page.getByRole('button', { name: 'Unarchive', exact: true }).click();
   await expect(row).toBeHidden();
 });
+
+test('desktop app: a chat opens in its own window unless that is switched off, and a chat window shows only the chat', async ({ page, request }) => {
+  // Stands in for the desktop shell: it records what the page asks of it.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __calls: Array<[string, unknown]>; __TAURI_INTERNALS__: unknown };
+    w.__calls = [];
+    w.__TAURI_INTERNALS__ = { invoke: (c: string, a: unknown) => { w.__calls.push([c, a]); return Promise.resolve(); } };
+  });
+  const calls = (): Promise<Array<[string, Record<string, string>]>> => page.evaluate(() => (window as unknown as { __calls: Array<[string, Record<string, string>]> }).__calls);
+  await page.goto('/');
+  await page.locator('#u').fill(process.env.EMBER_USER ?? 'me');
+  await page.locator('#p').fill(process.env.EMBER_PASS ?? 'password123');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  const row = page.getByRole('button', { name: /Weekend plans/ });
+  // On by default: the click asks the shell for a window and the page stays on the list.
+  await row.click();
+  await expect.poll(async () => (await calls()).filter(([c]) => c === 'open_chat_window').length).toBe(1);
+  expect((await calls()).find(([c]) => c === 'open_chat_window')![1].title).toBe('Weekend plans');
+  await expect(page.getByRole('log')).toHaveCount(0);
+  // The right-click menu offers the window and archiving.
+  await row.click({ button: 'right' });
+  await expect(page.getByRole('button', { name: 'Open in its own window' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open in its own window' }).click();
+  await expect.poll(async () => (await calls()).filter(([c]) => c === 'open_chat_window').length).toBe(2);
+  // Switched off: the chat opens in the one window.
+  await page.getByRole('button', { name: /Settings/ }).first().click();
+  await page.getByRole('switch', { name: 'Chats in their own windows' }).uncheck();
+  await page.getByRole('button', { name: /^(\d+ )?Chats$/ }).first().click();
+  await row.click();
+  await expect(page.getByRole('log')).toBeVisible();
+  // A chat window: just the chat, named after it.
+  const login = await request.post('/api/auth/login', { data: { username: process.env.EMBER_USER ?? 'me', password: process.env.EMBER_PASS ?? 'password123' } });
+  expect(login.ok()).toBe(true);
+  const rooms = (await (await request.get('/api/rooms')).json()) as { rooms: Array<{ id: string; name: string }> };
+  const id = rooms.rooms.find((r) => r.name === 'Weekend plans')!.id;
+  await page.goto(`/?solo=1#/chat/${id}`);
+  await expect(page.getByRole('log')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('searchbox', { name: 'Search chats' })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Sections' })).toHaveCount(0);
+  await expect.poll(async () => (await calls()).filter(([c, a]) => c === 'set_window_title' && a.title === 'Weekend plans').length).toBeGreaterThan(0);
+});

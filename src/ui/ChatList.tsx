@@ -4,7 +4,7 @@ import { searchMessages, snippet, type Hit } from '../lib/search';
 import { listTime, messagePreview, roomPeer, roomTitle } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Message, Room } from '../lib/types';
-import { Avatar, Confirm, Icon, IconButton } from './kit';
+import { Avatar, Confirm, Icon, IconButton, Sheet } from './kit';
 import { NewChat } from './NewChat';
 
 const Row = memo(function Row({ room, meId, selected, typing, preview, onOpen, onMenu }: { room: Room; meId: string; selected: boolean; typing: boolean; preview: string; onOpen: (id: string) => void; onMenu: (room: Room) => void }) {
@@ -46,7 +46,7 @@ const Row = memo(function Row({ room, meId, selected, typing, preview, onOpen, o
   );
 });
 
-export function ChatList({ activeId, onOpen }: { activeId: string | null; onOpen: (id: string) => void }) {
+export function ChatList({ activeId, onOpen, onOpenWindow }: { activeId: string | null; onOpen: (id: string) => void; onOpenWindow?: (id: string) => void }) {
   const rooms = useStore((s) => s.rooms);
   const me = useStore((s) => s.me)!;
   const typing = useStore((s) => s.typing);
@@ -137,7 +137,13 @@ export function ChatList({ activeId, onOpen }: { activeId: string | null; onOpen
         <button type="button" className="fab" aria-label="New chat" onClick={() => setCreating(true)}><Icon name="add" /></button>
       </div>
       {creating ? <NewChat onClose={() => setCreating(false)} onOpen={(id) => { setCreating(false); onOpen(id); }} /> : null}
-      {menuRoom ? (
+      {menuRoom && onOpenWindow ? (
+        // The desktop app adds a second choice: the chat in a window of its own.
+        <Sheet title={roomTitle(menuRoom, me.id)} onClose={() => setMenuRoom(null)}>
+          <button type="button" className="menu-item" onClick={() => { const r = menuRoom; setMenuRoom(null); onOpenWindow(r.id); }}><Icon name="chat" />Open in its own window</button>
+          <button type="button" className="menu-item" onClick={() => { const r = menuRoom; setMenuRoom(null); void archiveRoom(r.id, !r.archived).catch((e: Error) => showToast(e.message || 'That did not work.')); }}><Icon name="archive" />{menuRoom.archived ? 'Unarchive' : 'Archive'}</button>
+        </Sheet>
+      ) : menuRoom ? (
         <Confirm
           title={roomTitle(menuRoom, me.id)}
           text={menuRoom.archived ? 'Move this chat back to your chats.' : 'Archived chats leave your list and stay quiet. Their unread count is kept, and they stay archived when new messages arrive.'}
