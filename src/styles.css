@@ -224,6 +224,9 @@ a { color: var(--primary); }
 .link-card div { padding: 6px 9px; font-size: 13.5px; }
 .link-card b { display: block; }
 .link-card span { opacity: 0.8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.new-below.round { width: 40px; padding: 0; display: grid; place-items: center; min-height: 40px; border-radius: 50%; background: var(--surface-variant); color: var(--on-bg); }
+.new-below.round svg { width: 24px; height: 24px; fill: currentColor; }
+.new-below-wrap { position: sticky; bottom: 0; height: 0; z-index: 2; }
 .new-below { position: absolute; right: 14px; bottom: 12px; background: var(--primary); color: var(--on-primary); border-radius: 18px; min-height: 36px; padding: 0 14px; font-weight: 600; box-shadow: var(--shadow); }
 .older { text-align: center; padding: 8px; color: var(--on-surface-variant); font-size: 13px; }
 

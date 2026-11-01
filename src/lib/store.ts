@@ -3,7 +3,7 @@ import { api, ApiError, onAuthLost } from './api';
 import { decryptBody } from './decrypt';
 import { encodeEnvelope, encryptWithRoomKey, roomKeyFromGroup, sealBytes } from './crypto';
 import { ensureGroupKey, forgetDevice, loadOrCreateDevice, type GroupState } from './group';
-import { desktopAttention, desktopNotify, desktopUnread, isSoloWindow } from './desktop';
+import { desktopAttention, desktopNotify, desktopShake, desktopUnread, isSoloWindow } from './desktop';
 import { lastActivity, messagePreview } from './format';
 import { realtime, type Frame } from './realtime';
 import { playSound } from './sounds';
@@ -259,7 +259,7 @@ export const useStore = create<State>((set, get) => {
         if (userId === s.me?.id) break;
         const name = get().users[userId]?.displayName ?? 'Someone';
         set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: Date.now() }, events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: `${name} sent a nudge`, at: Date.now() }].slice(-30) } }));
-        if (!isSoloWindow()) playSound('nudge');
+        if (!isSoloWindow()) { playSound('nudge'); desktopShake(roomId); }
         desktopNotify(`${name} sent a nudge`, 'Open Ember to answer.');
         desktopAttention(true);
         navigator.vibrate?.([120, 60, 120, 60, 200]);
@@ -570,6 +570,7 @@ export const useStore = create<State>((set, get) => {
       lastNudge = now;
       realtime.send({ t: 'nudge', roomId });
       playSound('nudge');
+      desktopShake(roomId);
       navigator.vibrate?.([120, 60, 120]);
       set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: now }, events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: 'You sent a nudge', at: now }].slice(-30) } }));
     },

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { startCall } from '../lib/call';
+import { isDesktop } from '../lib/desktop';
 import { clock, dayLabel, isOnline, isSticker, roomPeer, roomTitle, sameDay } from '../lib/format';
 import { usePrefs } from '../lib/prefs';
 import { useStore } from '../lib/store';
@@ -248,6 +249,8 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const stick = useRef(true);
   const lastCount = useRef(0);
   const [below, setBelow] = useState(false);
+  // Scrolled up away from the newest message: a button takes you back down, as in the Android app.
+  const [away, setAway] = useState(false);
   const [menu, setMenu] = useState<Message | null>(null);
   const [fwd, setFwd] = useState<Message[] | null>(null);
   const [del, setDel] = useState<Message[] | null>(null);
@@ -268,7 +271,8 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const nudgedAt = useStore((s) => s.nudgeAt[roomId] ?? 0);
   const [shaking, setShaking] = useState(false);
   useEffect(() => {
-    if (!nudgedAt || Date.now() - nudgedAt > 1500) return;
+    // The desktop app shakes the whole window instead.
+    if (isDesktop() || !nudgedAt || Date.now() - nudgedAt > 1500) return;
     // Off and on again, so a second nudge shakes the chat again instead of joining the first shake.
     setShaking(false);
     const raf = window.requestAnimationFrame(() => setShaking(true));
@@ -320,7 +324,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
     else if (added > 0) setBelow(true);
     lastCount.current = list.length;
   }, [list, me?.id, toBottom]);
-  useEffect(() => { lastCount.current = 0; setBelow(false); }, [roomId]);
+  useEffect(() => { lastCount.current = 0; setBelow(false); setAway(false); }, [roomId]);
 
   // When the keyboard opens the list shrinks: keep the newest message in view.
   useEffect(() => {
@@ -335,6 +339,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
     if (!el) return;
     const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
     stick.current = gap < 120;
+    setAway(gap > 240);
     if (stick.current) setBelow(false);
     if (el.scrollTop < 80 && history[roomId] === 'more') {
       const before = el.scrollHeight;
@@ -523,7 +528,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
         </button>
       ) : null}
 
-      <div className="messages scroll" ref={scroller} onScroll={onScroll} role="log" aria-live="off" aria-label={`Messages with ${title}`}>
+      <div className="messages scroll" ref={scroller} onScroll={onScroll} onLoadCapture={() => { if (stick.current) toBottom(); }} role="log" aria-live="off" aria-label={`Messages with ${title}`}>
         {history[roomId] === 'loading' ? <div className="older">Loading…</div> : null}
         {history[roomId] === 'more' ? <div className="older">Scroll up for older messages</div> : null}
         {notices.before.map((e) => <div key={e.id} className="event">{e.text}</div>)}
@@ -538,7 +543,13 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
           </div>
         ))}
         {rows.length === 0 && history[roomId] !== 'loading' ? <div className="empty-main" style={{ padding: 40 }}>No messages yet. Say hello.</div> : null}
-        {below ? <button type="button" className="new-below" onClick={() => { toBottom(true); setBelow(false); }}>New messages</button> : null}
+        {below || away ? (
+          <div className="new-below-wrap">
+            {below
+              ? <button type="button" className="new-below" onClick={() => { toBottom(true); setBelow(false); }}>New messages</button>
+              : <button type="button" className="new-below round" aria-label="Latest messages" title="Latest messages" onClick={() => toBottom(true)}><Icon name="down" /></button>}
+          </div>
+        ) : null}
       </div>
 
       {sealedBlocked ? <EncryptionBanner /> : null}

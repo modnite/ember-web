@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.1
+
+- The New messages button floats over the list again. It sat inside the scrolling list and scrolled away with it, so there was no way back down. A round down button now shows whenever you are scrolled up, and New messages shows when something new arrived.
+- The list stays at the newest message while pictures load, instead of ending up short of the bottom.
+- Desktop app: nudges shake the window, and switching Chats in their own windows merges or splits the open chat windows.
+
 ## 0.12.0
 
 - Desktop app: with chats in their own windows the main window is only the chat list, kept thin, with no empty pane beside it. The sign-in page is narrower.

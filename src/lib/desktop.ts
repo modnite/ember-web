@@ -51,6 +51,21 @@ export function desktopCloseWindow(): void {
   ask('close_window', {});
 }
 
+/** Shake the window a chat is in (its own window, else the main one): a nudge, sent or received. Not held back by the system's reduced motion setting. */
+export function desktopShake(roomId: string): void {
+  ask('shake_chat', { roomId });
+}
+
+/** Chats stop having windows of their own: closes them all and says which chats they showed (the one in use first). */
+export async function desktopCloseChatWindows(): Promise<string[]> {
+  try {
+    const ids = await internals()?.invoke('close_chat_windows', {});
+    return Array.isArray(ids) ? ids.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
 /** The page has drawn itself: the shell shows the window it kept hidden until now. */
 export function desktopReady(): void {
   ask('window_ready', {});

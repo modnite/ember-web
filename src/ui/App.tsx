@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '../lib/store';
 import { usePrefs } from '../lib/prefs';
-import { desktopCloseWindow, desktopLayout, desktopOpenChat, desktopReady, desktopSetTitle, isDesktop, isSoloWindow } from '../lib/desktop';
+import { desktopCloseChatWindows, desktopCloseWindow, desktopLayout, desktopOpenChat, desktopReady, desktopSetTitle, isDesktop, isSoloWindow } from '../lib/desktop';
 import { roomTitle } from '../lib/format';
 import { applyLook } from '../lib/theme';
 import { onUpdateReady, reloadForUpdate } from '../lib/update';
@@ -96,6 +96,23 @@ export function App() {
   const soloRoom = useStore((s) => (solo && route.chatId ? s.rooms.find((r) => r.id === route.chatId) : undefined));
   const myId = useStore((s) => s.me?.id);
   useEffect(() => { if (soloRoom && myId) desktopSetTitle(roomTitle(soloRoom, myId)); }, [soloRoom, myId]);
+  // Switching "Chats in their own windows" merges or splits what is open: off brings the open chat windows' chats back into this window
+  // (the one in use is shown), on pops the chat shown here out into a window of its own.
+  const wasWindows = useRef(chatWindows);
+  const chatNow = useRef('');
+  // The chat last shown here, even while Settings (where the switch is) is on screen.
+  if (route.chatId) chatNow.current = route.chatId;
+  useEffect(() => {
+    if (wasWindows.current === chatWindows) return;
+    wasWindows.current = chatWindows;
+    if (!isDesktop() || solo) return;
+    if (chatWindows) {
+      const id = chatNow.current;
+      if (id) { openChatWindow(id); if (location.hash.startsWith('#/chat/')) location.hash = '#/'; }
+    } else {
+      void desktopCloseChatWindows().then((ids) => { if (ids[0]) location.hash = `#/chat/${encodeURIComponent(ids[0])}`; });
+    }
+  }, [chatWindows, solo, openChatWindow]);
   const back = useCallback(() => go(`#/${last === 'chats' ? '' : last}`), [go, last]);
 
   if (boot === 'loading') return <div className="app" aria-busy="true"><div className="empty-main"><img src="/icons/icon-192.png" alt="" />Ember</div></div>;
