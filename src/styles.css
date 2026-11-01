@@ -92,6 +92,7 @@ a { color: var(--primary); }
 /* ------------------------------------------------------------------ shell */
 .app { position: fixed; inset: 0; height: var(--vh, 100dvh); display: flex; background: var(--bg); }
 .pane-list { width: var(--list-width); flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--outline-variant); min-width: 0; background: var(--bg); }
+.app.list-only .pane-list { width: 100%; border-right: 0; }
 .pane-main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--chat-bg); position: relative; }
 .empty-main { margin: auto; text-align: center; color: var(--on-surface-variant); padding: 24px; }
 .empty-main img { width: 96px; height: 96px; border-radius: 22px; margin-bottom: 12px; }
@@ -297,7 +298,7 @@ svg:not([width]):not([class]) { width: 1.25em; height: 1.25em; fill: currentColo
 .profile h2 { margin: 0; font-size: 20px; }
 .profile p { margin: 0; color: var(--on-surface-variant); }
 .login { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--safe-top) + 24px) calc(var(--safe-right) + 24px) calc(var(--safe-bottom) + 24px) calc(var(--safe-left) + 24px); background: var(--bg); overflow-y: auto; }
-.login form { width: min(100%, 380px); display: flex; flex-direction: column; gap: 4px; }
+.login form { width: min(100%, 320px); display: flex; flex-direction: column; gap: 4px; }
 .login .logo { width: 96px; height: 96px; margin: 0 auto 4px; display: block; fill: var(--primary); }
 .login h1 { text-align: center; margin: 0 0 12px; color: var(--primary); }
 .login .links { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 8px; }

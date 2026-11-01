@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
 import { usePrefs } from '../lib/prefs';
-import { desktopCloseWindow, desktopOpenChat, desktopSetTitle, isDesktop, isSoloWindow } from '../lib/desktop';
+import { desktopCloseWindow, desktopLayout, desktopOpenChat, desktopReady, desktopSetTitle, isDesktop, isSoloWindow } from '../lib/desktop';
 import { roomTitle } from '../lib/format';
 import { applyLook } from '../lib/theme';
 import { onUpdateReady, reloadForUpdate } from '../lib/update';
@@ -42,6 +42,7 @@ export function App() {
   const online = useStore((s) => s.online);
   const rooms = useStore((s) => s.rooms);
   const requests = useStore((s) => s.contacts.incoming.length);
+  const chatWindows = usePrefs((s) => s.desktopChatWindows);
   const theme = usePrefs((s) => s.theme);
   const accent = usePrefs((s) => s.accent);
   const wallpaper = usePrefs((s) => s.wallpaper);
@@ -85,6 +86,13 @@ export function App() {
     else go(`#/chat/${encodeURIComponent(id)}`);
   }, [go, openChatWindow]);
   const solo = isSoloWindow();
+  // With a window per chat the main window is only the list, so it is kept thin and has no empty pane beside it.
+  const listOnly = isDesktop() && !solo && chatWindows;
+  useEffect(() => {
+    if (boot === 'loading') return;
+    desktopReady();
+    if (!solo) desktopLayout(boot === 'signedOut' || listOnly);
+  }, [boot, solo, listOnly]);
   const soloRoom = useStore((s) => (solo && route.chatId ? s.rooms.find((r) => r.id === route.chatId) : undefined));
   const myId = useStore((s) => s.me?.id);
   useEffect(() => { if (soloRoom && myId) desktopSetTitle(roomTitle(soloRoom, myId)); }, [soloRoom, myId]);
@@ -108,7 +116,7 @@ export function App() {
 
   const unread = rooms.filter((r) => !r.archived).reduce((n, r) => n + r.unread, 0);
   const chatOpen = !!route.chatId;
-  const screen = chatOpen ? 'chat' : 'list';
+  const screen = chatOpen && !listOnly ? 'chat' : 'list';
   const nav = (
     <nav className="bottom-nav" aria-label="Sections">
       {NAV.map(([tab, label, icon]) => (
@@ -121,15 +129,15 @@ export function App() {
   );
 
   return (
-    <div className="app" data-screen={screen}>
+    <div className={listOnly ? 'app list-only' : 'app'} data-screen={screen}>
       <div className="pane-list">
         {!online ? <div className="top-note" role="status">You are offline. Messages wait until you are back.</div> : null}
         {route.tab === 'chats' ? <ChatList activeId={route.chatId} onOpen={openChat} onOpenWindow={isDesktop() ? openChatWindow : undefined} /> : route.tab === 'people' ? <People onOpenChat={openChat} /> : <Settings />}
         {nav}
       </div>
-      <main className="pane-main">
+      {listOnly ? null : <main className="pane-main">
         {route.chatId ? <ChatScreen key={route.chatId} roomId={route.chatId} onBack={back} onClose={back} wide={wide} /> : wide ? <div className="empty-main"><img src="/icons/icon-192.png" alt="" /><p>Pick a chat, or start a new one.</p></div> : null}
-      </main>
+      </main>}
       <RingCard />
       <CallScreen />
       {update ? <div className="update-bar" role="status"><span style={{ flex: 1 }}>A new version of Ember is ready.</span><button type="button" onClick={reloadForUpdate}>Reload</button></div> : null}

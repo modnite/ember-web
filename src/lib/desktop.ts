@@ -51,6 +51,17 @@ export function desktopCloseWindow(): void {
   ask('close_window', {});
 }
 
+/** The page has drawn itself: the shell shows the window it kept hidden until now. */
+export function desktopReady(): void {
+  ask('window_ready', {});
+}
+
+/** The main window is narrow ("thin") for the sign-in page and for a chat list whose chats open in windows of their own, wide otherwise. */
+export function desktopLayout(thin: boolean): void {
+  if (isSoloWindow()) return;
+  ask('set_window_layout', { thin });
+}
+
 /** Open the shell's page for choosing another server. */
 export function desktopChangeServer(): void {
   ask('open_server_picker', {});

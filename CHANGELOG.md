@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.0
+
+- Desktop app: with chats in their own windows the main window is only the chat list, kept thin, with no empty pane beside it. The sign-in page is narrower.
+- Desktop app: the window tells the shell when it has drawn itself, so windows open without a blank flash.
+
 ## 0.11.0
 
 * In the Ember desktop app each chat now opens in a window of its own, so each chat has its own taskbar button. A switch in Settings, Chats in their own windows, turns it off for the one-window look. Right click a chat in the list for Open in its own window. A chat window shows only that chat, takes its name from the chat, and leaves sounds, notices and the unread count to the main window. Nothing changes in a browser.
