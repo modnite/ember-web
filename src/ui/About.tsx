@@ -9,6 +9,7 @@ declare const __APP_VERSION__: string;
 /** Where the source of each part lives. */
 const REPOS: Array<[string, string, string]> = [
   ['Ember for Android', 'Source code of the phone app', 'https://github.com/modnite/ember-android'],
+  ['Ember web', 'This page, in the browser and inside the desktop app', 'https://github.com/modnite/ember-web'],
   ['Ember for desktop', 'Windows, Mac and Linux', 'https://github.com/modnite/ember-desktop'],
   ['Hearth server', 'The server Ember talks to', 'https://github.com/modnite/hearth-server'],
 ];

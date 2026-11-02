@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VideoTrack } from 'livekit-client';
-import { canShareScreen, cancelLobby, connectCall, dismissError, flipCamera, leaveCall, setFit, setLobby, setMinimized, toggleCamera, toggleMic, toggleMuteForMe, toggleScreen, useCall, type CallPerson } from '../lib/call';
+import { canShareScreen, cancelLobby, connectCall, dismissError, flipCamera, leaveCall, setFit, setLobby, setMinimized, toggleCamera, toggleMic, toggleMuteForMe, SHARE_QUALITIES, savedShareChoice, startScreenShare, stopScreenShare, useCall, type CallPerson, type ShareChoice } from '../lib/call';
+import { isDesktop } from '../lib/desktop';
 import { roomPeer, roomTitle } from '../lib/format';
 import { realtime } from '../lib/realtime';
 import { usePrefs } from '../lib/prefs';
 import { ringUntilStopped } from '../lib/sounds';
 import { useStore } from '../lib/store';
-import { Avatar, Icon, type IconName } from './kit';
+import { Avatar, Icon, Sheet, type IconName } from './kit';
 import { LobbyDevices } from './LobbyDevices';
 
 function CallButton({ icon, label, onClick, pressed, className = '' }: { icon: IconName; label: string; onClick: () => void; pressed?: boolean; className?: string }) {
@@ -37,10 +38,13 @@ function Tile({ p, big }: { p: CallPerson; big?: boolean }) {
   const mirror = p.isLocal && !screen && mirrorSelf && facing === 'user';
   const hasPicture = !!track && (p.camOn || screen);
   const fitted = own ?? (screen ? true : fitAll);
+  const tileEl = useRef<HTMLDivElement>(null);
+  const toggleFull = (): void => { if (document.fullscreenElement) void document.exitFullscreen(); else void tileEl.current?.requestFullscreen().catch(() => undefined); };
   return (
-    <div className={`tile${p.speaking ? ' speaking' : ''}${mirror ? ' mirror' : ''}${fitted ? ' contain' : ''}`} data-big={big ? '1' : undefined}>
+    <div ref={tileEl} className={`tile${p.speaking ? ' speaking' : ''}${mirror ? ' mirror' : ''}${fitted ? ' contain' : ''}`} data-big={big ? '1' : undefined}>
       {hasPicture ? <TrackVideo track={track} mirror={mirror} /> : <Avatar user={user} name={p.name} size={88} />}
       {p.isLocal ? null : <button type="button" className={`tile-mute${p.mutedByMe ? ' on' : ''}`} aria-pressed={p.mutedByMe} aria-label={p.mutedByMe ? `Hear ${p.name} again` : `Mute ${p.name} for me`} title={p.mutedByMe ? 'Hear again' : 'Mute for me'} onClick={() => toggleMuteForMe(p.identity)}><Icon name={p.mutedByMe ? 'volumeOff' : 'volume'} /></button>}
+      {screen && !p.isLocal ? <button type="button" className="tile-full" aria-label="Full screen" title="Full screen" onClick={toggleFull}><Icon name="fullscreen" /></button> : null}
       {hasPicture ? <button type="button" className="tile-fit" aria-label={fitted ? `Fill the tile with ${p.isLocal ? 'your picture' : p.name}` : `Fit ${p.isLocal ? 'your picture' : p.name} in the tile`} title={fitted ? 'Fill' : 'Fit'} onClick={() => setOwn(!fitted)}><Icon name={fitted ? 'fullscreen' : 'fullscreenExit'} /></button> : null}
       <span className="label">{p.isLocal ? 'You' : p.name}{p.mutedByMe ? <Icon name="volumeOff" className="mic-ico" /> : null}{!p.micOn ? <Icon name="micOff" className="mic-ico" /> : null}</span>
     </div>
@@ -53,6 +57,7 @@ const elapsed = (from: number, now: number): string => {
 };
 
 export function CallScreen() {
+  const [shareMenu, setShareMenu] = useState(false);
   const c = useCall();
   const room = useStore((s) => s.rooms.find((r) => r.id === c.roomId));
   const me = useStore((s) => s.me)!;
@@ -96,14 +101,38 @@ export function CallScreen() {
       <div className="tiles" data-n={Math.min(shown.length, 9)} data-share={sharer ? '1' : undefined}>
         {shown.map((p, i) => <Tile key={p.identity + (p.screen ? 's' : '')} p={p} big={i === 0} />)}
       </div>
+      {c.sharing ? <div className="sharing-bar" role="status"><Icon name="screen" />Sharing{c.shareQuality ? `: ${SHARE_QUALITIES.find((q) => q.id === c.shareQuality)?.label}` : ''}<button type="button" className="btn small" onClick={() => void stopScreenShare()}>Stop</button></div> : null}
+      {shareMenu ? <ShareSheet onClose={() => setShareMenu(false)} /> : null}
       <div className="call-actions">
         <CallButton icon={c.micOn ? 'mic' : 'micOff'} label={c.micOn ? 'Mute' : 'Unmute'} pressed={!c.micOn} onClick={() => void toggleMic()} />
         <CallButton icon={c.camOn ? 'video' : 'videoOff'} label={c.camOn ? 'Camera off' : 'Camera on'} pressed={!c.camOn} onClick={() => void toggleCamera()} />
         {c.canFlip && c.camOn ? <CallButton icon="flip" label="Switch camera" onClick={() => void flipCamera()} /> : null}
-        {canShareScreen() ? <CallButton icon="screen" label={c.sharing ? 'Stop sharing' : 'Share screen'} pressed={c.sharing} onClick={() => void toggleScreen()} /> : null}
+        {canShareScreen() ? <CallButton icon="screen" label={c.sharing ? 'Stop sharing' : 'Share screen'} pressed={c.sharing} onClick={() => (c.sharing ? void stopScreenShare() : setShareMenu(true))} /> : null}
         <CallButton icon="callEnd" label="Leave the call" className="end" onClick={() => void leaveCall()} />
       </div>
     </div>
+  );
+}
+
+/** Choosing how the screen is sent before it is shared. The last choice is remembered. */
+function ShareSheet({ onClose }: { onClose: () => void }) {
+  const [choice, setChoice] = useState<ShareChoice>(savedShareChoice);
+  return (
+    <Sheet title="Share your screen" onClose={onClose} actions={<><button className="btn text" onClick={onClose}>Cancel</button><button className="btn" onClick={() => { onClose(); void startScreenShare(choice); }}>Share</button></>}>
+      <div role="radiogroup" aria-label="Quality">
+        {SHARE_QUALITIES.map((q) => (
+          <button key={q.id} type="button" role="radio" aria-checked={choice.quality === q.id} className="setting" onClick={() => setChoice({ ...choice, quality: q.id, sound: q.id === 'gaming' ? true : choice.sound })}>
+            <Icon name={choice.quality === q.id ? 'check' : 'screen'} className="ico" />
+            <span className="main">{q.label}<small>{q.note}</small></span>
+          </button>
+        ))}
+      </div>
+      {isDesktop() ? <div className="setting"><Icon name="info" className="ico" /><span className="main">Your main screen is shared</span></div> : null}
+      <button type="button" role="switch" aria-checked={choice.sound} className="setting" onClick={() => setChoice({ ...choice, sound: !choice.sound })}>
+        <Icon name={choice.sound ? 'volume' : 'volumeOff'} className="ico" />
+        <span className="main">Share sound<small>{choice.sound ? 'On: the others hear what your computer plays' : 'Off'}</small></span>
+      </button>
+    </Sheet>
   );
 }
 

@@ -38,6 +38,8 @@ interface CallState {
   facing: 'user' | 'environment';
   canFlip: boolean;
   sharing: boolean;
+  /** How my screen is being sent, while I share it. */
+  shareQuality: ShareQuality | null;
   error: string | null;
   startedAt: number;
   people: CallPerson[];
@@ -50,7 +52,7 @@ interface CallState {
 }
 
 export const useCall = create<CallState>(() => ({
-  phase: 'idle', roomId: null, joining: false, video: false, micOn: true, camOn: false, facing: 'user', canFlip: false, sharing: false,
+  phase: 'idle', roomId: null, joining: false, video: false, micOn: true, camOn: false, facing: 'user', canFlip: false, sharing: false, shareQuality: null,
   error: null, startedAt: 0, people: [], lowBattery: null, peerBattery: {}, fit: false, minimized: false,
 }));
 
@@ -316,13 +318,70 @@ export async function flipCamera(): Promise<void> {
   refresh();
 }
 
-export async function toggleScreen(): Promise<void> {
-  if (!room) return;
+/**
+ * How a shared screen is sent. The default of a call library is a still-picture mode (15 frames a second), which is poor for a game. Gaming keeps
+ * the frame rate up and lets the sharpness give way when the line is short; Sharp text does the opposite. A higher bitrate is asked for in each.
+ */
+export type ShareQuality = 'gaming' | 'everyday' | 'sharp';
+export interface ShareChoice { quality: ShareQuality; sound: boolean }
+
+export const SHARE_QUALITIES: Array<{ id: ShareQuality; label: string; note: string }> = [
+  { id: 'gaming', label: 'Gaming', note: '60 frames a second' },
+  { id: 'everyday', label: 'Everyday', note: '30 frames a second' },
+  { id: 'sharp', label: 'Sharp text', note: '15 frames a second' },
+];
+
+const SHARE_SPEC = {
+  gaming: { fps: 60, bitrate: 9_000_000, hint: 'motion', degradation: 'maintain-framerate' },
+  everyday: { fps: 30, bitrate: 4_500_000, hint: 'motion', degradation: 'balanced' },
+  sharp: { fps: 15, bitrate: 3_500_000, hint: 'text', degradation: 'maintain-resolution' },
+} as const;
+
+const SHARE_KEY = 'ember.share';
+export function savedShareChoice(): ShareChoice {
   try {
-    await room.localParticipant.setScreenShareEnabled(!useCall.getState().sharing);
+    const v = JSON.parse(localStorage.getItem(SHARE_KEY) ?? 'null') as Partial<ShareChoice> | null;
+    if (v && (v.quality === 'gaming' || v.quality === 'everyday' || v.quality === 'sharp')) return { quality: v.quality, sound: v.sound !== false };
+  } catch {
+    /* nothing saved */
+  }
+  return { quality: 'everyday', sound: true };
+}
+
+/** Start sharing the screen the way chosen. The browser or the app asks which screen or window. */
+export async function startScreenShare(choice: ShareChoice): Promise<void> {
+  if (!room) return;
+  try { localStorage.setItem(SHARE_KEY, JSON.stringify(choice)); } catch { /* the choice is not remembered */ }
+  const spec = SHARE_SPEC[choice.quality];
+  try {
+    await room.localParticipant.setScreenShareEnabled(
+      true,
+      { audio: choice.sound, systemAudio: 'include', contentHint: spec.hint, resolution: { width: 1920, height: 1080, frameRate: spec.fps }, selfBrowserSurface: 'exclude', surfaceSwitching: 'include' },
+      { screenShareEncoding: { maxBitrate: spec.bitrate, maxFramerate: spec.fps }, degradationPreference: spec.degradation, simulcast: false },
+    );
+    set({ shareQuality: choice.quality });
   } catch {
     /* the person closed the picker */
   }
+  refresh();
+}
+
+/** What the shared screen is being sent as (frames a second, size, bitrate), for checking a quality setting. Also reachable from the console. */
+export async function shareStats(): Promise<Array<{ fps: number; width: number; height: number; kbps: number; codec: string; limited: string }>> {
+  const track = room?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track as LocalVideoTrack | undefined;
+  const stats = (await track?.getSenderStats()) ?? [];
+  return stats.map((s) => ({ fps: s.framesPerSecond ?? 0, width: s.frameWidth ?? 0, height: s.frameHeight ?? 0, kbps: Math.round((s.targetBitrate ?? 0) / 1000), codec: '', limited: s.qualityLimitationReason ?? '' }));
+}
+(window as unknown as { __emberShareStats?: typeof shareStats }).__emberShareStats = shareStats;
+
+export async function stopScreenShare(): Promise<void> {
+  if (!room) return;
+  try {
+    await room.localParticipant.setScreenShareEnabled(false);
+  } catch {
+    /* already stopped */
+  }
+  set({ shareQuality: null });
   refresh();
 }
 
