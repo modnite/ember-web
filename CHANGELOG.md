@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.0
+
+- About Ember (Settings, About): the app and server versions, a check for updates, and links to the source of the Android app, the desktop app and the server. In the desktop app it also shows the app's own version, looks for a newer app on GitHub, and downloads and starts the installer (Windows) or opens the download (Mac and Linux).
+
 ## 0.14.1
 
 - Scrollbars look the same everywhere: thin, a rounded thumb in the theme's colour, no track and no arrows, in the desktop app on Windows, Mac and Linux and in browsers. The thumb brightens on hover.

@@ -71,6 +71,22 @@ export async function desktopCloseChatWindows(): Promise<string[]> {
   }
 }
 
+async function answer<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
+  const i = internals();
+  if (!i) throw new Error('This is not the desktop app.');
+  return (await i.invoke(command, args)) as T;
+}
+
+export interface DesktopInfo { version: string; os: string; arch: string }
+export interface DesktopUpdate { current: string; latest: string; newer: boolean; page: string; installer: string | null; notes: string }
+
+/** The desktop app's own version. */
+export const desktopInfo = (): Promise<DesktopInfo> => answer<DesktopInfo>('app_info');
+/** Look for a newer desktop app on its GitHub releases. */
+export const desktopCheckUpdate = (): Promise<DesktopUpdate> => answer<DesktopUpdate>('check_update');
+/** Download and start the installer (Windows) or open the download (Mac and Linux). */
+export const desktopInstallUpdate = (url: string): Promise<void> => answer<void>('install_update', { url });
+
 /** The page has drawn itself: the shell shows the window it kept hidden until now. */
 export function desktopReady(): void {
   ask('window_ready', {});

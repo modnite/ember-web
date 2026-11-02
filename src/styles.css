@@ -290,6 +290,8 @@ a { color: var(--primary); }
 /* ------------------------------------------------------------------ settings, people, login */
 .page { flex: 1; min-height: 0; }
 .group-title { padding: 16px 20px 4px; font-size: 13px; font-weight: 700; color: var(--primary); }
+a.setting { color: inherit; text-decoration: none; }
+a.setting small { text-decoration: none; }
 .setting { display: flex; align-items: center; gap: 20px; padding: 12px 20px; padding-left: calc(var(--safe-left) + 20px); padding-right: calc(var(--safe-right) + 20px); min-height: 64px; width: 100%; text-align: left; }
 button.setting:hover { background: var(--container); }
 svg.ico { width: 24px; height: 24px; fill: var(--on-surface-variant); flex: none; }

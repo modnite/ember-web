@@ -9,6 +9,7 @@ import { canInstall, promptInstall } from '../lib/install';
 import { desktopChangeServer, isDesktop } from '../lib/desktop';
 import { AppearanceRows } from './Appearance';
 import { SoundRows } from './SoundSettings';
+import { AboutDialog } from './About';
 import { Avatar, Icon, Sheet, Toggle, type IconName } from './kit';
 
 declare const __APP_VERSION__: string;
@@ -39,7 +40,7 @@ export function Settings() {
   const { me, info, e2ee, signOut, updateProfile, setAvatar, setupE2ee, showToast } = useStore();
   const prefs = usePrefs();
   const [push, setPush] = useState<PushState>('off');
-  const [dialog, setDialog] = useState<'name' | 'password' | 'username' | 'twostep' | 'blocked' | 'ios' | null>(null);
+  const [dialog, setDialog] = useState<'name' | 'password' | 'username' | 'twostep' | 'blocked' | 'ios' | 'about' | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const ios = isIOS();
   const installed = isStandalone();
@@ -126,7 +127,7 @@ export function Settings() {
         <Group title="About">
           {desktop ? <Action icon="info" title="Server" sub={`${location.host}. Tap to use another server.`} onClick={desktopChangeServer} /> : null}
           <Toggle icon="info" title="Send crash reports" sub="To your Hearth server, so a fix can be made" checked={prefs.crashReports} onChange={(v) => set('crashReports', v)} />
-          <div className="setting"><Icon name="info" className="ico" /><span className="main">Ember web {__APP_VERSION__}<small>{info?.name ?? 'Hearth server'}{info?.version ? ` ${info.version}` : ''} · {location.host}</small></span></div>
+          <Action icon="info" title="About Ember" sub={`Version ${__APP_VERSION__}${info?.version ? `, server ${info.version}` : ''}, updates, source code`} onClick={() => setDialog('about')} />
           <Action icon="logout" title="Sign out" danger onClick={() => void signOut()} />
         </Group>
         </div>
@@ -137,6 +138,7 @@ export function Settings() {
       {dialog === 'username' ? <UsernameDialog onClose={() => setDialog(null)} /> : null}
       {dialog === 'twostep' ? <TwoStepDialog onClose={() => setDialog(null)} /> : null}
       {dialog === 'blocked' ? <BlockedDialog onClose={() => setDialog(null)} /> : null}
+      {dialog === 'about' ? <AboutDialog onClose={() => setDialog(null)} /> : null}
       {dialog === 'ios' ? (
         <Sheet title="Add to Home Screen" onClose={() => setDialog(null)} actions={<button className="btn" onClick={() => setDialog(null)}>Got it</button>}>
           <ol style={{ paddingLeft: 20, margin: 0, lineHeight: 1.8 }}>

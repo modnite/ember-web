@@ -7,6 +7,7 @@ import { registerSW } from 'virtual:pwa-register';
 let updateSW: ((reload?: boolean) => Promise<void>) | null = null;
 let readyFn: (() => void) | null = null;
 let ready = false;
+let registration: ServiceWorkerRegistration | null = null;
 
 export function startServiceWorker(): void {
   if (!('serviceWorker' in navigator) || import.meta.env.DEV) return;
@@ -19,10 +20,21 @@ export function startServiceWorker(): void {
     onRegisteredSW(_url, reg) {
       // Look for a new version every hour, and when the app comes back to the screen.
       if (!reg) return;
+      registration = reg;
       window.setInterval(() => void reg.update().catch(() => undefined), 3_600_000);
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void reg.update().catch(() => undefined); });
     },
   });
+}
+
+/** Look for a new version now. Resolves with whether one is ready to load. */
+export async function checkForWebUpdate(): Promise<boolean> {
+  if (registration) {
+    await registration.update().catch(() => undefined);
+    // A new version that is found installs in the background and then says so through onNeedRefresh.
+    for (let i = 0; i < 8 && !ready; i += 1) await new Promise((r) => setTimeout(r, 500));
+  }
+  return ready;
 }
 
 export function onUpdateReady(fn: () => void): void {
