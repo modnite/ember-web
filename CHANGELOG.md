@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.1
+
+- Scrollbars look the same everywhere: thin, a rounded thumb in the theme's colour, no track and no arrows, in the desktop app on Windows, Mac and Linux and in browsers. The thumb brightens on hover.
+
 ## 0.14.0
 
 - Calls: every other person's tile has a Mute for me button (top left). It silences them for you only and the others still hear them, as in the Android app. Press it again to hear them.
