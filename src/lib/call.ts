@@ -81,11 +81,29 @@ export function startCall(roomId: string, video: boolean, joining = false): Prom
     useStore.getState().showToast('Calls need a secure connection (https).');
     return Promise.resolve();
   }
-  set({ phase: 'lobby', roomId, joining, video, micOn: true, camOn: video, facing: 'user', error: null, people: [], lowBattery: null, peerBattery: {}, sharing: false, minimized: false });
+  // A video call starts with the camera on; joining or answering starts the way the camera was left last time.
+  set({ phase: 'lobby', roomId, joining, video, micOn: true, camOn: video || rememberedCamera(), facing: 'user', error: null, people: [], lowBattery: null, peerBattery: {}, sharing: false, minimized: false });
   return Promise.resolve();
 }
 
+const CAMERA_KEY = 'ember.call.camera';
+function rememberedCamera(): boolean {
+  try {
+    return localStorage.getItem(CAMERA_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function rememberCamera(on: boolean): void {
+  try {
+    localStorage.setItem(CAMERA_KEY, on ? '1' : '0');
+  } catch {
+    /* storage blocked: the camera starts the default way */
+  }
+}
+
 export function setLobby(p: Partial<Pick<CallState, 'micOn' | 'camOn' | 'facing'>>): void {
+  if (p.camOn !== undefined) rememberCamera(p.camOn);
   set(p);
 }
 
@@ -279,6 +297,7 @@ export async function toggleMic(): Promise<void> {
 
 export async function toggleCamera(): Promise<void> {
   if (!room) return;
+  rememberCamera(room.localParticipant.getTrackPublication(Track.Source.Camera)?.isMuted !== false);
   const on = room.localParticipant.getTrackPublication(Track.Source.Camera)?.isMuted === false;
   await room.localParticipant.setCameraEnabled(!on, { facingMode: useCall.getState().facing }).catch((e: Error) => useStore.getState().showToast(e.message));
   refresh();

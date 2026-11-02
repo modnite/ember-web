@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.1
+
+- Joining or answering a call starts with the camera the way you left it last time (on or off). A video call still starts with it on.
+
 ## 0.15.0
 
 - About Ember (Settings, About): the app and server versions, a check for updates, and links to the source of the Android app, the desktop app and the server. In the desktop app it also shows the app's own version, looks for a newer app on GitHub, and downloads and starts the installer (Windows) or opens the download (Mac and Linux).
