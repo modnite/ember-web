@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.1
+
+- The chat list beside a chat is narrower: 320 pixels, down from 380, so the chat gets the room.
+
 ## 0.16.0
 
 - Screen sharing is much smoother. Sharing used the call library's default, a still-picture mode at 15 frames a second. Share screen now asks how to send it: Gaming (60 frames a second, the frame rate is kept and sharpness gives way on a short line), Everyday (30) or Sharp text (15, keeps the picture sharp), and whether to share sound. The choice is remembered. Measured in the desktop app: 1920 by 1080 at 55 to 57 frames a second in Gaming.
