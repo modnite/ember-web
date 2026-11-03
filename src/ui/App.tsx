@@ -12,6 +12,8 @@ import { Icon, type IconName } from './kit';
 import { Login } from './Login';
 import { People } from './People';
 import { Settings } from './Settings';
+import { FirstLook } from './FirstLook';
+import { useAppearanceSetup } from '../lib/appearanceSetup';
 
 type Tab = 'chats' | 'people' | 'settings';
 interface Route { tab: Tab; chatId: string | null }
@@ -37,7 +39,9 @@ function useWide(): boolean {
 }
 
 export function App() {
+  const setup = useAppearanceSetup();
   const boot = useStore((s) => s.boot);
+  useEffect(() => { if (boot === 'ready' && setup.pending) setup.finish(); }, [boot, setup.pending, setup.finish]);
   const toast = useStore((s) => s.toast);
   const online = useStore((s) => s.online);
   const rooms = useStore((s) => s.rooms);
@@ -116,6 +120,7 @@ export function App() {
   const back = useCallback(() => go(`#/${last === 'chats' ? '' : last}`), [go, last]);
 
   if (boot === 'loading') return <div className="app" aria-busy="true"><div className="empty-main"><img src="/icons/icon-192.png" alt="" />Ember</div></div>;
+  if (boot === 'signedOut' && setup.pending) return <FirstLook onDone={setup.finish} />;
   if (boot === 'signedOut') return <><Login />{toast ? <div className="toast" role="status">{toast.text}</div> : null}</>;
 
   // A chat window of the desktop app: just the one chat, no list and no tabs.

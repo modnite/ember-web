@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Needs the dev server (EMBER_URL), so the page can import the call store as a module. A poster image stands in for the video.
 async function signIn(page: Page): Promise<void> {
+  await page.addInitScript(() => localStorage.setItem('ember.appearanceSetup', 'done'));
   await page.goto('/');
   await page.locator('#u').fill(process.env.EMBER_USER ?? 'me');
   await page.locator('#p').fill(process.env.EMBER_PASS ?? 'password123');

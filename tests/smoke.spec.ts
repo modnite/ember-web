@@ -4,6 +4,7 @@ const user = process.env.EMBER_USER ?? 'me';
 const pass = process.env.EMBER_PASS ?? 'password123';
 
 async function signIn(page: Page): Promise<void> {
+  await page.addInitScript(() => localStorage.setItem('ember.appearanceSetup', 'done'));
   await page.goto('/');
   await page.locator('#u').fill(user);
   await page.locator('#p').fill(pass);

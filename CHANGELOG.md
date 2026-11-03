@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.0
+
+- Optional first-launch appearance chooser with theme, accent colours and live preview. Skip restores the default look; existing installations keep their preferences.
+
 ## 0.17.1
 
 - Add bounded receiver-only repair when remote speech continues but received audio bytes stop advancing. Silence and local mute choices do not trigger repair; cleanup stops pending recovery after leaving.
