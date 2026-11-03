@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.1
+
+- Add bounded receiver-only repair when remote speech continues but received audio bytes stop advancing. Silence and local mute choices do not trigger repair; cleanup stops pending recovery after leaving.
+
 ## 0.17.0
 
 - Remote microphone and shared-screen audio now have call-owned playback elements, cleaned up when tracks leave and retained while video is minimized. Playback resumes on interaction/return.
