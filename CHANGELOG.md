@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.0
+
+- Remote microphone and shared-screen audio now have call-owned playback elements, cleaned up when tracks leave and retained while video is minimized. Playback resumes on interaction/return.
+- Cancelled connections cannot overwrite a newer call. Server-provided ICE routes are preserved.
+- Screen shares and presenter cameras have separate tiles; Focus and Back to grid select the stage. Group tiles are larger. Applies to web, PWA and Ember desktop.
+
 ## 0.16.1
 
 - The chat list beside a chat is narrower: 320 pixels, down from 380, so the chat gets the room.

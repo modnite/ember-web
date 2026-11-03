@@ -26,7 +26,7 @@ function TrackVideo({ track, mirror }: { track?: VideoTrack; mirror?: boolean })
   return <video ref={ref} autoPlay playsInline muted className={mirror ? 'mirrored' : undefined} />;
 }
 
-function Tile({ p, big }: { p: CallPerson; big?: boolean }) {
+function Tile({ p, big, onFocus }: { p: CallPerson; big?: boolean; onFocus?: () => void }) {
   const mirrorSelf = usePrefs((s) => s.mirrorSelf);
   const fitAll = useCall((s) => s.fit);
   // Per tile: null follows the call-wide choice. A shared screen starts out fitted so nothing is cut off.
@@ -45,6 +45,7 @@ function Tile({ p, big }: { p: CallPerson; big?: boolean }) {
       {hasPicture ? <TrackVideo track={track} mirror={mirror} /> : <Avatar user={user} name={p.name} size={88} />}
       {p.isLocal ? null : <button type="button" className={`tile-mute${p.mutedByMe ? ' on' : ''}`} aria-pressed={p.mutedByMe} aria-label={p.mutedByMe ? `Hear ${p.name} again` : `Mute ${p.name} for me`} title={p.mutedByMe ? 'Hear again' : 'Mute for me'} onClick={() => toggleMuteForMe(p.identity)}><Icon name={p.mutedByMe ? 'volumeOff' : 'volume'} /></button>}
       {screen && !p.isLocal ? <button type="button" className="tile-full" aria-label="Full screen" title="Full screen" onClick={toggleFull}><Icon name="fullscreen" /></button> : null}
+      {onFocus ? <button type="button" className="tile-focus" onClick={onFocus}>{big ? 'Back to grid' : 'Focus'}</button> : null}
       {hasPicture ? <button type="button" className="tile-fit" aria-label={fitted ? `Fill the tile with ${p.isLocal ? 'your picture' : p.name}` : `Fit ${p.isLocal ? 'your picture' : p.name} in the tile`} title={fitted ? 'Fill' : 'Fit'} onClick={() => setOwn(!fitted)}><Icon name={fitted ? 'fullscreen' : 'fullscreenExit'} /></button> : null}
       <span className="label">{p.isLocal ? 'You' : p.name}{p.mutedByMe ? <Icon name="volumeOff" className="mic-ico" /> : null}{!p.micOn ? <Icon name="micOff" className="mic-ico" /> : null}</span>
     </div>
@@ -57,8 +58,10 @@ const elapsed = (from: number, now: number): string => {
 };
 
 export function CallScreen() {
+  const [focus, setFocus] = useState<string | null>(null);
   const [shareMenu, setShareMenu] = useState(false);
   const c = useCall();
+  useEffect(() => setFocus(null), [c.roomId]);
   const room = useStore((s) => s.rooms.find((r) => r.id === c.roomId));
   const me = useStore((s) => s.me)!;
   const [now, setNow] = useState(Date.now());
@@ -86,7 +89,11 @@ export function CallScreen() {
   }
   const people = c.people;
   const sharer = people.find((p) => p.screen);
-  const shown = sharer ? [sharer, ...people.filter((p) => p !== sharer)] : people;
+  // A share is its own tile: the presenter's camera remains in the participant strip.
+  const tiles = [...people.filter((p) => p.screen), ...people.map((p) => ({ ...p, screen: undefined }))];
+  const tileKey = (p: CallPerson): string => p.identity + (p.screen ? ':screen' : ':camera');
+  const focused = tiles.find((p) => tileKey(p) === focus) ?? (sharer && focus !== ':grid' ? tiles[0] : undefined);
+  const shown = focused ? [focused, ...tiles.filter((p) => p !== focused)] : tiles;
   const peerBattery = Object.values(c.peerBattery);
   if (c.minimized) return <Mini title={title} people={people} elapsed={c.phase === 'connected' ? elapsed(c.startedAt, now) : 'Connecting…'} />;
   return (
@@ -98,8 +105,8 @@ export function CallScreen() {
       </div>
       {c.lowBattery !== null && !dismissed ? <div className="battery-note" role="status"><Icon name="battery" className="mic-ico" /> Your battery is at {c.lowBattery}%. Plug in now and use a fast charger. <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss" style={{ color: '#fff', marginLeft: 8 }}>✕</button></div> : null}
       {peerBattery.map((b) => <div className="battery-note" key={b.name} role="status">{b.name}'s battery is at {b.level}%.</div>)}
-      <div className="tiles" data-n={Math.min(shown.length, 9)} data-share={sharer ? '1' : undefined}>
-        {shown.map((p, i) => <Tile key={p.identity + (p.screen ? 's' : '')} p={p} big={i === 0} />)}
+      <div className="tiles" data-n={Math.min(shown.length, 9)} data-share={focused ? '1' : undefined}>
+        {shown.map((p, i) => <Tile key={tileKey(p)} p={p} big={!!focused && i === 0} onFocus={() => setFocus(focused === p ? (sharer ? ':grid' : null) : tileKey(p))} />)}
       </div>
       {c.sharing ? <div className="sharing-bar" role="status"><Icon name="screen" />Sharing{c.shareQuality ? `: ${SHARE_QUALITIES.find((q) => q.id === c.shareQuality)?.label}` : ''}<button type="button" className="btn small" onClick={() => void stopScreenShare()}>Stop</button></div> : null}
       {shareMenu ? <ShareSheet onClose={() => setShareMenu(false)} /> : null}

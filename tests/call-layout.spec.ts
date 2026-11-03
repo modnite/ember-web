@@ -53,3 +53,23 @@ test('fit button and minimized window', async ({ page }, info) => {
   await page.locator('.mini-view').click();
   await expect(page.locator('.tiles')).toBeVisible();
 });
+
+for (const [width, height] of [[1366, 768], [1280, 720], [390, 844], [844, 390]]) {
+  test(`share stage retains presenter camera at ${width}x${height}`, async ({ page }, info) => {
+    await page.setViewportSize({ width: width!, height: height! });
+    await signIn(page);
+    await fakeCall(page, 3);
+    await page.evaluate(async () => {
+      const load = (path: string): Promise<any> => import(/* @vite-ignore */ path);
+      const { useCall } = await load('/src/lib/call.ts');
+      useCall.setState((s: any) => ({ people: s.people.map((p: any, i: number) => i === 1 ? { ...p, screen: p.camera } : p) }));
+    });
+    await expect(page.locator('.tile')).toHaveCount(4);
+    await expect(page.locator('.tiles')).toHaveAttribute('data-share', '1');
+    await page.getByRole('button', { name: 'Back to grid', exact: true }).click();
+    await expect(page.locator('.tiles')).not.toHaveAttribute('data-share', '1');
+    await page.locator('.tile').first().getByRole('button', { name: 'Focus', exact: true }).click();
+    await expect(page.locator('.tiles')).toHaveAttribute('data-share', '1');
+    await page.screenshot({ path: `test-results/${info.project.name}-share-${width}x${height}.png` });
+  });
+}

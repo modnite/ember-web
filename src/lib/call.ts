@@ -10,6 +10,7 @@ import { realtime } from './realtime';
 import { playSound } from './sounds';
 import { usePrefs } from './prefs';
 import { useStore } from './store';
+import { ownRoomAudio } from './roomAudio';
 
 export interface CallPerson {
   identity: string;
@@ -58,6 +59,8 @@ export const useCall = create<CallState>(() => ({
 
 const set = useCall.setState;
 let room: Room | null = null;
+let stopAudio: (() => void) | null = null;
+let generation = 0;
 let wake: WakeLockSentinel | null = null;
 let battery: { stop: () => void } | null = null;
 
@@ -204,6 +207,8 @@ export async function connectCall(): Promise<void> {
   const store = useStore.getState();
   const info = store.rooms.find((r) => r.id === roomId);
   set({ phase: 'connecting', error: null });
+  const attempt = ++generation;
+  let owned: Room | null = null;
   try {
     const options: RoomOptions = {
       adaptiveStream: true,
@@ -222,7 +227,10 @@ export async function connectCall(): Promise<void> {
       await provider.setKey(mediaKeyFromGroup(key, roomId));
     }
     const r = new Room(options);
+    if (attempt !== generation) { await r.disconnect(); return; }
+    owned = r;
     room = r;
+    stopAudio = ownRoomAudio(r);
     installFrontFlip(r);
     for (const e of [RoomEvent.ParticipantConnected, RoomEvent.ParticipantDisconnected, RoomEvent.TrackSubscribed, RoomEvent.TrackUnsubscribed, RoomEvent.TrackPublished, RoomEvent.TrackUnpublished, RoomEvent.TrackMuted, RoomEvent.TrackUnmuted, RoomEvent.LocalTrackPublished, RoomEvent.LocalTrackUnpublished, RoomEvent.ActiveSpeakersChanged]) r.on(e, refresh);
     r.localParticipant.on(ParticipantEvent.IsSpeakingChanged, refresh);
@@ -242,10 +250,13 @@ export async function connectCall(): Promise<void> {
         /* not a battery message */
       }
     });
-    r.on(RoomEvent.Disconnected, () => { if (useCall.getState().phase === 'connected') void leaveCall(false); });
+    r.on(RoomEvent.Disconnected, () => { if (room === r && useCall.getState().phase === 'connected') void leaveCall(false); });
     if (!s.joining) realtime.send({ t: 'call.start', roomId });
     const { url, token } = await api.callToken(roomId);
-    await r.connect(url, token, { rtcConfig: { iceServers: [] } });
+    if (attempt !== generation) return;
+    // Let LiveKit supply its configured STUN/TURN routes and transport fallback.
+    await r.connect(url, token);
+    if (attempt !== generation) { await r.disconnect(); return; }
     if (provider) await r.setE2EEEnabled(true);
     await r.startAudio().catch(() => undefined);
     realtime.send({ t: 'call.join', roomId });
@@ -255,6 +266,7 @@ export async function connectCall(): Promise<void> {
       s.micOn ? r.localParticipant.setMicrophoneEnabled(true) : Promise.resolve(),
       s.camOn ? r.localParticipant.setCameraEnabled(true, usePrefs.getState().camId ? { deviceId: usePrefs.getState().camId } : { facingMode: s.facing }) : Promise.resolve(),
     ]);
+    if (attempt !== generation) return;
     const speaker = usePrefs.getState().speakerId;
     if (speaker) await r.switchActiveDevice('audiooutput', speaker).catch(() => undefined);
     const devices = await Room.getLocalDevices('videoinput').catch(() => []);
@@ -263,13 +275,17 @@ export async function connectCall(): Promise<void> {
     void keepAwake();
     watchBattery(r);
   } catch (e) {
-    room?.disconnect().catch(() => undefined);
+    void owned?.disconnect().catch(() => undefined);
+    if (attempt !== generation) return;
+    stopAudio?.(); stopAudio = null;
     room = null;
     set({ phase: 'error', error: e instanceof Error ? e.message : 'The call could not start.' });
   }
 }
 
 export async function leaveCall(playEnd = true): Promise<void> {
+  generation++;
+  stopAudio?.(); stopAudio = null;
   mutedForMe.clear();
   const { roomId } = useCall.getState();
   if (roomId) realtime.send({ t: 'call.leave', roomId });
