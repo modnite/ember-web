@@ -44,9 +44,9 @@ test('fit button and minimized window', async ({ page }, info) => {
   await signIn(page);
   await fakeCall(page, 3);
   const first = page.locator('.tile').nth(1);
-  await expect(first).not.toHaveClass(/contain/);
-  await first.getByRole('button', { name: /Fit/ }).click();
   await expect(first).toHaveClass(/contain/);
+  await first.getByRole('button', { name: /Fill/ }).click();
+  await expect(first).not.toHaveClass(/contain/);
   await page.getByRole('button', { name: /Back to your chats/ }).click();
   await expect(page.locator('.call.mini')).toBeVisible();
   await expect(page.getByRole('button', { name: /New chat/ })).toBeVisible();
@@ -72,5 +72,42 @@ for (const [width, height] of [[1366, 768], [1280, 720], [390, 844], [844, 390]]
     await page.locator('.tile').first().getByRole('button', { name: 'Focus', exact: true }).click();
     await expect(page.locator('.tiles')).toHaveAttribute('data-share', '1');
     await page.screenshot({ path: `test-results/${info.project.name}-share-${width}x${height}.png` });
+  });
+}
+
+for (const [width, height] of [[390, 664], [844, 390]]) {
+  test(`decoded video fills tiles through focus and minimize at ${width}x${height}`, async ({ page }, info) => {
+    await page.setViewportSize({ width: width!, height: height! });
+    await signIn(page);
+    await fakeCall(page, 2);
+    await page.evaluate(async () => {
+      const load = (path: string): Promise<any> => import(/* @vite-ignore */ path);
+      const { useCall } = await load('/src/lib/call.ts');
+      const video = () => ({ attach: (el: HTMLVideoElement) => {
+        el.src = '/tests/call-video.mp4'; el.loop = true; void el.play(); return el;
+      }, detach: (el: HTMLVideoElement) => { el.pause(); el.removeAttribute('src'); el.load(); } });
+      useCall.setState((s: any) => ({ people: s.people.map((p: any) => ({ ...p, camera: video() })) }));
+    });
+    const picturesFill = async () => {
+      await expect.poll(() => page.locator('.tile video').evaluateAll((els) => els.every((v) => (v as HTMLVideoElement).readyState >= 2 && !(v as HTMLVideoElement).paused))).toBe(true);
+      const sizes = await page.locator('.tile video').evaluateAll((els) => els.map((v) => {
+        const a = v.getBoundingClientRect(), b = v.parentElement!.getBoundingClientRect();
+        return Math.max(Math.abs(a.x-b.x), Math.abs(a.y-b.y), Math.abs(a.width-b.width), Math.abs(a.height-b.height));
+      }));
+      for (const difference of sizes) expect(difference).toBeLessThan(2);
+    };
+    await picturesFill();
+    await page.locator('.tile').nth(1).getByRole('button', { name: 'Focus', exact: true }).click();
+    await picturesFill();
+    await page.screenshot({ path: `test-results/${info.project.name}-decoded-focus-${width}.png` });
+    await page.getByRole('button', { name: /Back to your chats/ }).click();
+    const mini = page.locator('.call.mini');
+    await expect(mini.locator('video')).toHaveJSProperty('paused', false);
+    const card = await mini.boundingBox();
+    expect(card!.width).toBeLessThanOrEqual(241);
+    expect(card!.height).toBeLessThan(height! - 90);
+    await page.screenshot({ path: `test-results/${info.project.name}-decoded-mini-${width}.png` });
+    await mini.locator('.mini-actions').getByRole('button', { name: 'Return to the call' }).click();
+    await picturesFill();
   });
 }

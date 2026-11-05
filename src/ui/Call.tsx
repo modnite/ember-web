@@ -148,7 +148,7 @@ function Mini({ title, people, elapsed: time }: { title: string; people: CallPer
   const c = useCall();
   const user = useStore((s) => s.users);
   const remote = people.filter((p) => !p.isLocal);
-  const main = remote.find((p) => p.speaking) ?? remote.find((p) => p.screen) ?? remote[0] ?? people[0];
+  const main = remote.find((p) => p.screen) ?? remote.find((p) => p.speaking) ?? remote[0] ?? people[0];
   const track = main ? main.screen ?? main.camera : undefined;
   const show = !!main && !!track && (main.camOn || !!main.screen);
   return (

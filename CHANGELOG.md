@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.1
+
+- Anchor decoded call video to its tile bounds to prevent Safari grid sizing from squeezing the picture into a strip. Cover focus, minimize, restore and landscape with actual video playback tests.
+- Fit the whole picture by default, including floating calls. Keep minimized cards within short viewports and prioritize screen shares.
+
 ## 0.18.0
 
 - Optional first-launch appearance chooser with theme, accent colours and live preview. Skip restores the default look; existing installations keep their preferences.

@@ -54,7 +54,7 @@ interface CallState {
 
 export const useCall = create<CallState>(() => ({
   phase: 'idle', roomId: null, joining: false, video: false, micOn: true, camOn: false, facing: 'user', canFlip: false, sharing: false, shareQuality: null,
-  error: null, startedAt: 0, people: [], lowBattery: null, peerBattery: {}, fit: false, minimized: false,
+  error: null, startedAt: 0, people: [], lowBattery: null, peerBattery: {}, fit: true, minimized: false,
 }));
 
 const set = useCall.setState;
@@ -87,7 +87,7 @@ export function startCall(roomId: string, video: boolean, joining = false): Prom
     return Promise.resolve();
   }
   // A video call starts with the camera on; joining or answering starts the way the camera was left last time.
-  set({ phase: 'lobby', roomId, joining, video, micOn: true, camOn: video || rememberedCamera(), facing: 'user', error: null, people: [], lowBattery: null, peerBattery: {}, sharing: false, minimized: false });
+  set({ phase: 'lobby', roomId, joining, video, micOn: true, camOn: video || rememberedCamera(), facing: 'user', error: null, people: [], lowBattery: null, peerBattery: {}, sharing: false, minimized: false, fit: true });
   return Promise.resolve();
 }
 
