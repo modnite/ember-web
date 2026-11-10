@@ -1,0 +1,7 @@
+<!doctype html><html><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="review"></div><script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { NotificationSettings } from '/src/ui/NotificationSettings.tsx';
+import '/src/styles.css';
+createRoot(document.getElementById('review')).render(React.createElement('main', {style:{padding:16,maxWidth:520,margin:'0 auto'}}, React.createElement('h1',null,'Notifications'), React.createElement(NotificationSettings,{installed:true,ios:true,onError:()=>{}})));
+</script></body></html>

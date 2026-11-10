@@ -144,6 +144,7 @@ export const api = {
 
   // ---- push
   pushKey: () => req<{ enabled: boolean; key: string }>('/api/push/key'),
+  pushStatus: (endpoint: string) => req<{ enabled: boolean; registered: boolean; count: number }>(`/api/push/status?endpoint=${encodeURIComponent(endpoint)}`),
   pushSubscribe: (subscription: PushSubscriptionJSON) => req<{ ok: true }>('/api/push/subscribe', json({ subscription })),
   pushUnsubscribe: (endpoint: string) => req<{ ok: true }>('/api/push/unsubscribe', json({ endpoint })),
   pushTest: () => req<{ sent: number; failed: number; pruned: number; error?: string }>('/api/push/test', json({})),

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.2
+
+- Add an explicit notification permission button and iOS recovery help instead of a disabled blocked-state switch. Refresh permission status after returning from system settings.
+- Verify server registration before showing notifications as enabled, provide reconnection for missing registrations, and bound service-worker readiness waits.
+
 ## 0.18.1
 
 - Anchor decoded call video to its tile bounds to prevent Safari grid sizing from squeezing the picture into a strip. Cover focus, minimize, restore and landscape with actual video playback tests.

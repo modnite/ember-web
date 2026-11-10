@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { usePrefs, type Prefs } from '../lib/prefs';
-import { disablePush, enablePush, pushState, type PushState } from '../lib/push';
+import { NotificationSettings } from './NotificationSettings';
 import { useStore } from '../lib/store';
 import type { TwoStepStatus, User } from '../lib/types';
 import { isIOS, isStandalone } from '../lib/viewport';
@@ -27,36 +27,14 @@ function Action({ icon, title, sub, onClick, danger }: { icon: IconName; title: 
   );
 }
 
-const PUSH_TEXT: Record<PushState, string> = {
-  unsupported: 'This browser cannot show notifications.',
-  'needs-install': 'Add Ember to your Home Screen first. Notifications work from the installed app.',
-  blocked: 'Blocked. Allow notifications for this site in your browser or phone settings.',
-  off: 'Hear about new messages when Ember is closed.',
-  on: 'On for this browser.',
-  'server-off': 'This server has no push notifications set up.',
-};
-
 export function Settings() {
   const { me, info, e2ee, signOut, updateProfile, setAvatar, setupE2ee, showToast } = useStore();
   const prefs = usePrefs();
-  const [push, setPush] = useState<PushState>('off');
   const [dialog, setDialog] = useState<'name' | 'password' | 'username' | 'twostep' | 'blocked' | 'ios' | 'about' | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const ios = isIOS();
   const installed = isStandalone();
   const desktop = isDesktop();
-
-  useEffect(() => { void pushState(installed, ios).then(setPush); }, [installed, ios]);
-
-  async function togglePush(on: boolean): Promise<void> {
-    try {
-      if (on) await enablePush();
-      else await disablePush();
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'That did not work.');
-    }
-    setPush(await pushState(installed, ios));
-  }
 
   const set = <K extends keyof Prefs>(k: K, v: Prefs[K]): void => prefs.set({ [k]: v } as Partial<Prefs>);
   const Seg = <T extends string>({ value, options, onChange, label }: { value: T; options: [T, string][]; onChange: (v: T) => void; label: string }) => (
@@ -82,11 +60,10 @@ export function Settings() {
         <Group title="Notifications and sounds">
           {desktop
             ? <><Toggle icon="bell" title="Desktop alerts" sub="New messages, nudges and calls, and a flashing taskbar button" checked={prefs.desktopAlerts} onChange={(v) => set('desktopAlerts', v)} /><Toggle icon="chat" title="Chats in their own windows" sub="Off keeps everything in the one window" checked={prefs.desktopChatWindows} onChange={(v) => set('desktopChatWindows', v)} /></>
-            : <Toggle icon="bell" title="Message and call alerts" sub={PUSH_TEXT[push]} checked={push === 'on'} disabled={push !== 'on' && push !== 'off'} onChange={(v) => void togglePush(v)} />
+            : <NotificationSettings installed={installed} ios={ios} onError={showToast} />
           }
           <Toggle icon="music" title="Sounds in chats and calls" sub="Messages arriving, sending, ringing" checked={prefs.sounds} onChange={(v) => set('sounds', v)} />
           <SoundRows />
-          {push === 'on' ? <Action icon="bell" title="Send a test notification" onClick={() => void api.pushTest().then((r) => showToast(r.sent ? 'Sent. It should arrive in a moment.' : r.error ?? 'Nothing was sent.')).catch((e: Error) => showToast(e.message))} /> : null}
           {ios && !installed ? <Action icon="info" title="Add Ember to your Home Screen" sub="Needed for notifications on iPhone and iPad" onClick={() => setDialog('ios')} /> : null}
           {canInstall() ? <Action icon="download" title="Install Ember" sub="Open it like an app, with its own window" onClick={() => void promptInstall()} /> : null}
         </Group>
