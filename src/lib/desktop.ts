@@ -26,14 +26,21 @@ function ask(command: string, args: Record<string, unknown>): void {
 
 /** Whether a nudge moves the whole window: only where that was made to work (Windows). Elsewhere the chat itself shakes. */
 let nativeShake = isDesktop();
+let shellOs = '';
 if (isDesktop()) {
   try {
-    void (internals()?.invoke('app_info') as Promise<{ os: string }>).then((i) => { nativeShake = i.os === 'windows'; }).catch(() => { nativeShake = false; });
+    void (internals()?.invoke('app_info') as Promise<{ os: string }>).then((i) => { shellOs = i.os; nativeShake = i.os === 'windows'; }).catch(() => { nativeShake = false; });
   } catch {
     nativeShake = false;
   }
 }
 export const windowShakes = (): boolean => nativeShake;
+
+/**
+ * The desktop app on Linux. Its webview plays sounds through GStreamer, which crashed the app when the nudge recording (an mp3 file) was played on a
+ * system without the decoder, and animations there have crashed some graphics stacks, so a nudge there uses the plain built-in tones and no animation.
+ */
+export const isLinuxDesktop = (): boolean => isDesktop() && (shellOs === 'linux' || (shellOs === '' && /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent)));
 
 /** A system notice (only shown when the window is not the one being looked at). */
 export function desktopNotify(title: string, body: string): void {

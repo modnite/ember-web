@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.5
+
+- Desktop app on Linux: a nudge crashed the app of both people. The nudge was the only sound played from a file (an mp3, decoded by GStreamer in the Linux webview); on Linux the nudge now uses the built-in tones. The chat shakes again on Linux, moved by position instead of a graphics-card transform.
+
 ## 0.18.4
 
 - Nudges in a chat are one line with a count again ("Alex sent a nudge ×5") when the same person nudges within a minute, as in the Android app. Before, every nudge added a line.

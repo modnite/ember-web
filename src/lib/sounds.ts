@@ -1,3 +1,4 @@
+import { isLinuxDesktop } from './desktop';
 import { usePrefs } from './prefs';
 import { loadSound, type SoundSlot } from './soundFiles';
 
@@ -75,6 +76,8 @@ function playNudgeFile(): void {
   const now = Date.now();
   if (now - lastNudgeAt < 600 || nudgePlayers.size >= 3) return;
   lastNudgeAt = now;
+  // No sound file on Linux desktops: the tones are made by the page itself.
+  if (isLinuxDesktop()) { playBuiltIn('nudge'); return; }
   const a = new Audio('/sounds/nudge.mp3');
   nudgePlayers.add(a);
   const done = (): void => { nudgePlayers.delete(a); };
