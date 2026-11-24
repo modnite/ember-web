@@ -469,7 +469,8 @@ input[type='range']::-moz-range-thumb { width: 22px; height: 22px; border-radius
 
 @keyframes nudge-shake { 0%, 100% { transform: translateX(0); } 12% { transform: translateX(-9px); } 25% { transform: translateX(8px); } 38% { transform: translateX(-7px); } 50% { transform: translateX(6px); } 63% { transform: translateX(-4px); } 78% { transform: translateX(3px); } }
 .chat.shake { animation: nudge-shake 0.7s ease-in-out; }
-@media (prefers-reduced-motion: reduce) { .chat.shake { animation: none; } }
+/* A nudge is a deliberate call for attention and shakes whatever the motion setting, as the window shake of the desktop app always has (WebKitGTK on
+   Linux reports reduced motion whenever GTK animations are off, which hid the shake there). */
 
 .row.hit mark { background: var(--primary-container); color: var(--on-primary-container); border-radius: 3px; padding: 0 1px; }
 .bubble-row.flash .bubble { outline: 3px solid var(--primary); outline-offset: 2px; transition: outline-color 0.4s; }

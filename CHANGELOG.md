@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.7
+
+- A nudge shakes the chat whatever the system's reduced motion setting says, as the desktop app's window shake always did. On Linux WebKitGTK reports reduced motion whenever GTK animations are off (KDE setups), which hid the shake.
+
 ## 0.18.6
 
 - The nudge plays the same recording everywhere again, Linux included. It is now a plain .wav that the page reads itself and plays through Web Audio, like the built-in tones, instead of an mp3 handed to the browser's media decoder (on Linux that is GStreamer, the suspected cause of the crash on a nudge). The Linux-only tones from 0.18.5 are gone.
