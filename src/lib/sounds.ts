@@ -1,4 +1,4 @@
-import { isLinuxDesktop } from './desktop';
+import { parseWav } from './wav';
 import { usePrefs } from './prefs';
 import { loadSound, type SoundSlot } from './soundFiles';
 
@@ -69,21 +69,48 @@ export function previewSound(slot: SoundSlot): void {
   else playBuiltIn(slot === 'message' ? 'message' : 'ring');
 }
 
-/** The nudge sound: the one recording the Hearth web app and the Android app play. Never more than three at once, and not closer than 0.6 seconds. */
-const nudgePlayers = new Set<HTMLAudioElement>();
+/**
+ * The nudge sound: the one recording the Hearth web app and the Android app play, on every platform. It is a plain .wav the page reads itself and
+ * plays through Web Audio, the same way as the built-in tones, so no media decoder is involved (the Linux one crashed the desktop app on the mp3).
+ * Never more than three at once, and not closer than 0.6 seconds.
+ */
+let nudgeBuffer: Promise<AudioBuffer | null> | null = null;
+let nudgesPlaying = 0;
 let lastNudgeAt = 0;
+
+function loadNudge(c: AudioContext): Promise<AudioBuffer | null> {
+  nudgeBuffer ??= (async () => {
+    try {
+      const pcm = parseWav(await (await fetch('/sounds/nudge.wav')).arrayBuffer());
+      if (!pcm) return null;
+      const b = c.createBuffer(pcm.channels.length, pcm.channels[0]!.length, pcm.rate);
+      pcm.channels.forEach((ch, i) => b.getChannelData(i).set(ch));
+      return b;
+    } catch {
+      return null;
+    }
+  })();
+  return nudgeBuffer;
+}
+
 function playNudgeFile(): void {
   const now = Date.now();
-  if (now - lastNudgeAt < 600 || nudgePlayers.size >= 3) return;
+  if (now - lastNudgeAt < 600 || nudgesPlaying >= 3) return;
   lastNudgeAt = now;
-  // No sound file on Linux desktops: the tones are made by the page itself.
-  if (isLinuxDesktop()) { playBuiltIn('nudge'); return; }
-  const a = new Audio('/sounds/nudge.mp3');
-  nudgePlayers.add(a);
-  const done = (): void => { nudgePlayers.delete(a); };
-  a.addEventListener('ended', done);
-  a.addEventListener('error', done);
-  a.play().catch(() => { done(); playBuiltIn('nudge'); });
+  const c = context();
+  if (!c) return;
+  if (c.state !== 'running') void c.resume().catch(() => undefined);
+  void loadNudge(c).then((b) => {
+    if (!b) { playBuiltIn('nudge'); return; }
+    const src = c.createBufferSource();
+    const gain = c.createGain();
+    gain.gain.value = 0.9;
+    src.buffer = b;
+    src.connect(gain).connect(c.destination);
+    nudgesPlaying += 1;
+    src.onended = () => { nudgesPlaying -= 1; };
+    src.start();
+  });
 }
 
 export function playSound(kind: SoundKind): void {

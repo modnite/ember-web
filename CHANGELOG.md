@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.6
+
+- The nudge plays the same recording everywhere again, Linux included. It is now a plain .wav that the page reads itself and plays through Web Audio, like the built-in tones, instead of an mp3 handed to the browser's media decoder (on Linux that is GStreamer, the suspected cause of the crash on a nudge). The Linux-only tones from 0.18.5 are gone.
+- The chat shakes the same way on every platform again (the Linux-only variant from 0.18.5 is gone). The desktop app moves the whole window wherever the system allows it.
+
 ## 0.18.5
 
 - Desktop app on Linux: a nudge crashed the app of both people. The nudge was the only sound played from a file (an mp3, decoded by GStreamer in the Linux webview); on Linux the nudge now uses the built-in tones. The chat shakes again on Linux, moved by position instead of a graphics-card transform.

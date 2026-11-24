@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { startCall } from '../lib/call';
-import { isLinuxDesktop, windowShakes } from '../lib/desktop';
+import { windowShakes } from '../lib/desktop';
 import { clock, dayLabel, isOnline, isSticker, roomPeer, roomTitle, sameDay } from '../lib/format';
 import { usePrefs } from '../lib/prefs';
 import { useStore } from '../lib/store';
@@ -488,7 +488,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const savable = !!menu && !menu.deletedAt && menu.attachments.some((x) => isSticker(x) || /gif/i.test(x.mime) || /\.gif$/i.test(x.filename));
 
   return (
-    <div className={`chat${shaking ? (isLinuxDesktop() ? ' shake-lite' : ' shake') : ''}`} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
+    <div className={`chat${shaking ? ' shake' : ''}`} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
       {picked.length > 0 ? (
         <SelectionBar
           messages={picked.map((id) => (list ?? []).find((x) => x.id === id)).filter((x): x is Message => !!x)}
