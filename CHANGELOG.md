@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.3
+
+- A chat in a window of its own (desktop app) no longer stays on "This chat is not available". The window starts empty and its first ask for the chat list could fail or be slow, and nothing asked again. It now shows "Opening this chat…", asks again every few seconds, and after a while offers Try again.
+
 ## 0.18.2
 
 - Add an explicit notification permission button and iOS recovery help instead of a disabled blocked-state switch. Refresh permission status after returning from system settings.

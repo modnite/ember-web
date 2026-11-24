@@ -38,6 +38,28 @@ function useWide(): boolean {
   return wide;
 }
 
+/**
+ * The chat inside a window of its own. That window starts with nothing loaded, so the chat is not in its list yet: it asks again (the first ask
+ * can fail or be slow, on a slow machine especially) instead of saying "not available" for good, and offers to try again.
+ */
+function SoloChat({ roomId }: { roomId: string }) {
+  const known = useStore((s) => s.rooms.some((r) => r.id === roomId));
+  const [tries, setTries] = useState(0);
+  useEffect(() => {
+    if (known) return;
+    const t = window.setTimeout(() => { void useStore.getState().loadRooms(); setTries((n) => n + 1); }, tries === 0 ? 700 : 2500);
+    return () => window.clearTimeout(t);
+  }, [known, tries]);
+  if (!known) {
+    return (
+      <div className="empty-main">
+        {tries < 6 ? 'Opening this chat…' : <><span>This chat could not be opened.</span><button type="button" className="btn" onClick={() => setTries(0)}>Try again</button></>}
+      </div>
+    );
+  }
+  return <ChatScreen roomId={roomId} onBack={desktopCloseWindow} onClose={desktopCloseWindow} wide />;
+}
+
 export function App() {
   const setup = useAppearanceSetup();
   const boot = useStore((s) => s.boot);
@@ -128,7 +150,7 @@ export function App() {
     return (
       <div className="app solo" data-screen="chat">
         <main className="pane-main">
-          <ChatScreen key={route.chatId} roomId={route.chatId} onBack={desktopCloseWindow} onClose={desktopCloseWindow} wide />
+          <SoloChat key={route.chatId} roomId={route.chatId} />
         </main>
         <CallScreen />
         {toast ? <div className="toast" role="status" aria-live="polite">{toast.text}</div> : null}
