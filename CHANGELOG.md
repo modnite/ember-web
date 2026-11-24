@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.4
+
+- Nudges in a chat are one line with a count again ("Alex sent a nudge ×5") when the same person nudges within a minute, as in the Android app. Before, every nudge added a line.
+- Desktop app: only Windows moves the whole window for a nudge. On Linux that move froze the chat window of the person who nudged and crashed the app of the person nudged; there the chat itself shakes.
+
 ## 0.18.3
 
 - A chat in a window of its own (desktop app) no longer stays on "This chat is not available". The window starts empty and its first ask for the chat list could fail or be slow, and nothing asked again. It now shows "Opening this chat…", asks again every few seconds, and after a while offers Try again.

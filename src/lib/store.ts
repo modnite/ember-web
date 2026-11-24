@@ -3,6 +3,7 @@ import { api, ApiError, onAuthLost } from './api';
 import { decryptBody } from './decrypt';
 import { encodeEnvelope, encryptWithRoomKey, roomKeyFromGroup, sealBytes } from './crypto';
 import { ensureGroupKey, forgetDevice, loadOrCreateDevice, type GroupState } from './group';
+import { addNudgeEvent, type RoomEvent } from './nudgeEvents';
 import { adoptFromHash, noteGroup, refreshPortable, startFailover } from './failover';
 import { desktopAttention, desktopNotify, desktopShake, desktopUnread, isSoloWindow } from './desktop';
 import { lastActivity, messagePreview } from './format';
@@ -41,7 +42,7 @@ interface State {
   history: Record<string, 'loading' | 'more' | 'done'>;
   pending: Record<string, PendingMessage>;
   typing: Record<string, Record<string, number>>;
-  events: Record<string, { id: string; text: string; at: number }[]>;
+  events: Record<string, RoomEvent[]>;
   /** When the last nudge arrived in each room, so the open chat can shake. */
   nudgeAt: Record<string, number>;
   activeCalls: Record<string, ActiveCall>;
@@ -259,7 +260,7 @@ export const useStore = create<State>((set, get) => {
         const userId = String(f.userId);
         if (userId === s.me?.id) break;
         const name = get().users[userId]?.displayName ?? 'Someone';
-        set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: Date.now() }, events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: `${name} sent a nudge`, at: Date.now() }].slice(-30) } }));
+        set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: Date.now() }, events: { ...st.events, [roomId]: addNudgeEvent(st.events[roomId] ?? [], userId, name, Date.now(), `ev${++tmpCounter}`) } }));
         if (!isSoloWindow()) { playSound('nudge'); desktopShake(roomId); }
         desktopNotify(`${name} sent a nudge`, 'Open Ember to answer.');
         desktopAttention(true);
@@ -577,7 +578,7 @@ export const useStore = create<State>((set, get) => {
       playSound('nudge');
       desktopShake(roomId);
       navigator.vibrate?.([120, 60, 120]);
-      set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: now }, events: { ...st.events, [roomId]: [...(st.events[roomId] ?? []), { id: `ev${++tmpCounter}`, text: 'You sent a nudge', at: now }].slice(-30) } }));
+      set((st) => ({ nudgeAt: { ...st.nudgeAt, [roomId]: now }, events: { ...st.events, [roomId]: addNudgeEvent(st.events[roomId] ?? [], get().me?.id ?? 'me', 'You', now, `ev${++tmpCounter}`) } }));
     },
 
     async retry(roomId, tmpId) {

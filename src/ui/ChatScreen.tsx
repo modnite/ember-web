@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { startCall } from '../lib/call';
-import { isDesktop } from '../lib/desktop';
+import { windowShakes } from '../lib/desktop';
 import { clock, dayLabel, isOnline, isSticker, roomPeer, roomTitle, sameDay } from '../lib/format';
 import { usePrefs } from '../lib/prefs';
 import { useStore } from '../lib/store';
@@ -272,7 +272,7 @@ export function ChatScreen({ roomId, onBack, onClose, wide }: { roomId: string; 
   const [shaking, setShaking] = useState(false);
   useEffect(() => {
     // The desktop app shakes the whole window instead.
-    if (isDesktop() || !nudgedAt || Date.now() - nudgedAt > 1500) return;
+    if (windowShakes() || !nudgedAt || Date.now() - nudgedAt > 1500) return;
     // Off and on again, so a second nudge shakes the chat again instead of joining the first shake.
     setShaking(false);
     const raf = window.requestAnimationFrame(() => setShaking(true));

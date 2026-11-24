@@ -24,6 +24,17 @@ function ask(command: string, args: Record<string, unknown>): void {
   }
 }
 
+/** Whether a nudge moves the whole window: only where that was made to work (Windows). Elsewhere the chat itself shakes. */
+let nativeShake = isDesktop();
+if (isDesktop()) {
+  try {
+    void (internals()?.invoke('app_info') as Promise<{ os: string }>).then((i) => { nativeShake = i.os === 'windows'; }).catch(() => { nativeShake = false; });
+  } catch {
+    nativeShake = false;
+  }
+}
+export const windowShakes = (): boolean => nativeShake;
+
 /** A system notice (only shown when the window is not the one being looked at). */
 export function desktopNotify(title: string, body: string): void {
   if (isSoloWindow() || !usePrefs.getState().desktopAlerts) return;
@@ -53,6 +64,7 @@ export function desktopCloseWindow(): void {
 
 /** Shake the window a chat is in (its own window, else the main one): a nudge, sent or received. Not held back by the system's reduced motion setting. */
 export function desktopShake(roomId: string): void {
+  if (!nativeShake) return;
   ask('shake_chat', { roomId });
 }
 
